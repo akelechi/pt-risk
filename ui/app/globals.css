@@ -53,11 +53,35 @@ body {
   font-size: 13px;
 }
 
-.brand-screen {
+.brand-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.brand-nav a {
+  padding: 3px 9px;
+  border-radius: var(--radius-control);
   color: var(--text-muted);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   font-size: 12px;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.brand-nav a.current {
+  background: var(--accent-soft);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+a.badge {
+  color: inherit;
+  text-decoration: none;
+}
+
+.margin-frame a,
+.params-intro a {
+  color: var(--accent);
 }
 
 .header-status {
@@ -1009,4 +1033,115 @@ body {
 .stack-note {
   color: var(--text-muted);
   font-style: italic;
+}
+
+/* ------------------------------------------------- parameters screen */
+
+.page-head .params-intro {
+  max-width: 88ch;
+  margin: 6px 0 14px;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.params-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.params-counts li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+/* status is always the word; the fill only supports it */
+.status {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-control);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.status-public {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.status-assumed {
+  background: var(--warning-soft);
+  color: var(--warning);
+  border-style: dashed;
+}
+
+.status-confirmed {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.params-section {
+  margin: 0 0 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+}
+
+.params-section h2 {
+  margin: 0;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.params-scroll {
+  overflow-x: auto;
+}
+
+.params-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.params-table th,
+.params-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  text-align: left;
+  vertical-align: top;
+}
+
+.params-table thead th {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.params-table tbody th {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.params-table tbody tr:last-child th,
+.params-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.params-value {
+  max-width: 44ch;
 }
