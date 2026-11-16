@@ -28,6 +28,7 @@ export default async function FlowPage({ searchParams }: { searchParams: Promise
       <Header params={params} screen="Flow" tag="MILESTONE 1 · DA PRICE-TAKER · GAS ONLY" />
       <main className="page">
         <div className="page-head">
+          <p className="eyebrow">Flow</p>
           <h1>One hour of the plant</h1>
           {run && unit && meta?.online ? (
             <dl className="run-strip">

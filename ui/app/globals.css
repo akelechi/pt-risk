@@ -1,31 +1,5 @@
-/* Control-room palette: graphite ground, amber for money, teal for physical quantities.
-   Light mode keeps the same hierarchy on a cool grey ground. */
-:root {
-  color-scheme: dark light;
-  --ground: #14171a;
-  --panel: #1b1f23;
-  --rule: #343b42;
-  --rule-strong: #4b545d;
-  --text: #e4e7ea;
-  --muted: #8d969f;
-  --money: #f0a63a;
-  --physical: #3fc4b2;
-  --focus: #ffffff;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    --ground: #e9ecee;
-    --panel: #f6f7f8;
-    --rule: #c3c9ce;
-    --rule-strong: #8f989f;
-    --text: #15191c;
-    --muted: #56606a;
-    --money: #9a5b00;
-    --physical: #08766b;
-    --focus: #15191c;
-  }
-}
+/* Colors, type families, spacing and radii come from styles/tokens.css (docs/brand.md).
+   No literal color appears below: every color is one of those variables. */
 
 * {
   box-sizing: border-box;
@@ -34,22 +8,22 @@
 html,
 body {
   margin: 0;
-  background: var(--ground);
-  color: var(--text);
-  font-family: var(--font-sans), "IBM Plex Sans", system-ui, sans-serif;
-  font-size: 14px;
+  background: var(--surface-app);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 13px;
   line-height: 1.45;
 }
 
 :focus-visible {
-  outline: 2px solid var(--focus);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 .num,
 .figure-value,
 .figure-unit {
-  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -62,8 +36,8 @@ body {
   justify-content: space-between;
   gap: 10px 24px;
   padding: 12px 24px;
-  border-bottom: 1px solid var(--rule);
-  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-panel);
 }
 
 .brand {
@@ -73,13 +47,14 @@ body {
 }
 
 .brand-name {
-  font-weight: 600;
-  letter-spacing: 0.14em;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 1.5px;
   font-size: 13px;
 }
 
 .brand-screen {
-  color: var(--muted);
+  color: var(--text-muted);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-size: 12px;
@@ -93,22 +68,23 @@ body {
 }
 
 .tag {
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 11px;
   letter-spacing: 0.12em;
 }
 
 .badge {
+  border-radius: var(--radius-control);
   display: inline-flex;
   align-items: center;
   gap: 7px;
   padding: 4px 10px;
-  border: 1px solid var(--rule-strong);
+  border: 1px solid var(--line-strong);
   font-size: 12px;
 }
 
 .badge-of {
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 /* assumed = hatched square; offline = hollow square. Shape carries the state, not hue alone. */
@@ -119,22 +95,23 @@ body {
 }
 
 .badge-assumed {
-  border-color: var(--money);
+  border-color: var(--warning);
+  background: var(--warning-soft);
 }
 
 .badge-assumed .badge-mark {
-  color: var(--money);
-  background: repeating-linear-gradient(135deg, var(--money) 0 2px, transparent 2px 4px);
+  color: var(--warning);
+  background: repeating-linear-gradient(135deg, var(--warning) 0 2px, transparent 2px 4px);
 }
 
 .badge-assumed .num {
-  color: var(--money);
+  color: var(--warning);
   font-weight: 500;
 }
 
 .badge-offline {
   border-style: dashed;
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 /* -------------------------------------------------------------------- page */
@@ -145,21 +122,34 @@ body {
   padding: 20px 20px 40px;
 }
 
+.eyebrow {
+  margin: 0 0 2px;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
 .page-head h1 {
   margin: 0;
-  font-size: 18px;
-  font-weight: 500;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
 }
 
 .page-head p {
   margin: 4px 0 16px;
   max-width: 70ch;
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 .flow {
-  border: 1px solid var(--rule);
-  background: var(--panel);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border: 1px solid var(--line);
+  background: var(--surface-panel);
   padding: 8px 8px 0;
 }
 
@@ -172,33 +162,34 @@ body {
 /* ------------------------------------------------------------------- nodes */
 
 .node-box {
-  fill: var(--ground);
-  stroke: var(--rule-strong);
+  fill: var(--surface-raised);
+  stroke: var(--line-strong);
   stroke-width: 1;
 }
 
 .node-plant .node-box {
-  stroke: var(--text);
+  stroke: var(--physical);
   stroke-width: 1.5;
 }
 
 .node-rule {
-  stroke: var(--rule);
+  stroke: var(--line);
 }
 
 .node-icon {
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 .node-title {
-  fill: var(--text);
+  fill: var(--text-primary);
+  font-family: var(--font-display);
   font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
+  font-weight: 700;
+  letter-spacing: 1.5px;
 }
 
 .node-subtitle {
-  fill: var(--muted);
+  fill: var(--text-muted);
   font-size: 11px;
 }
 
@@ -206,19 +197,19 @@ body {
 .state > path,
 .state > circle {
   fill: none;
-  stroke: var(--rule-strong);
+  stroke: var(--line-strong);
   stroke-width: 1.2;
 }
 
 .state-name {
-  fill: var(--muted);
+  fill: var(--text-muted);
   font-size: 9.5px;
   letter-spacing: 0.08em;
 }
 
 .gauge {
   fill: none;
-  stroke: var(--rule-strong);
+  stroke: var(--line-strong);
   stroke-dasharray: 2 3;
 }
 
@@ -253,12 +244,12 @@ body {
 }
 
 .figure-label {
-  fill: var(--muted);
+  fill: var(--text-muted);
 }
 
 .figure-unit {
-  fill: var(--muted);
-  color: var(--muted);
+  fill: var(--text-muted);
+  color: var(--text-muted);
   font-size: 10.5px;
 }
 
@@ -269,6 +260,12 @@ body {
 .figure-value.money {
   fill: var(--money);
   color: var(--money);
+}
+
+/* a price is a label, not a flow */
+.figure-value.price {
+  fill: var(--text-primary);
+  color: var(--text-primary);
 }
 
 .figure-value.physical {
@@ -284,9 +281,9 @@ body {
   gap: 6px 28px;
   margin: 8px 0 0;
   padding: 10px 12px;
-  border-top: 1px solid var(--rule);
+  border-top: 1px solid var(--line);
   list-style: none;
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 12px;
 }
 
@@ -297,7 +294,7 @@ body {
 }
 
 .legend .figure-value {
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 /* ------------------------------------------------- narrow: stack the flow */
@@ -312,7 +309,7 @@ body {
 .stack-item {
   padding: 10px 10px 10px 12px;
   border-left: 3px solid var(--physical);
-  border-bottom: 1px solid var(--rule);
+  border-bottom: 1px solid var(--line);
 }
 
 .stack-item.money {
@@ -328,7 +325,7 @@ body {
 }
 
 .stack-arrow {
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 .stack-item dl {
@@ -342,7 +339,7 @@ body {
 }
 
 .stack-figure dt {
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 .stack-figure dd {
@@ -398,7 +395,7 @@ body {
 }
 
 .run-strip dt {
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 10.5px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -410,16 +407,18 @@ body {
 }
 
 .pick {
+  border-radius: var(--radius-control);
   display: inline-block;
   margin-right: 6px;
   padding: 0 7px;
-  border: 1px solid var(--rule-strong);
-  color: var(--text);
+  border: 1px solid var(--line-strong);
+  color: var(--text-primary);
   text-decoration: none;
 }
 
 .pick.current {
-  border-color: var(--text);
+  border-color: var(--accent);
+  background: var(--accent-soft);
   font-weight: 600;
 }
 
@@ -430,32 +429,36 @@ body {
 
 /* pass = tick in a solid box; not applicable = dot in a dashed box; fail = cross in a heavy box */
 .check {
+  border-radius: var(--radius-control);
   display: inline-flex;
   gap: 3px;
   padding: 0 5px;
-  border: 1px solid var(--rule-strong);
+  border: 1px solid var(--line-strong);
   font-size: 12px;
 }
 
 .check.pass {
-  border-color: var(--physical);
-  color: var(--physical);
+  border-color: var(--success);
+  background: var(--success-soft);
+  color: var(--success);
 }
 
 .check.not_applicable {
   border-style: dashed;
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 .check.fail {
   border-width: 2px;
-  border-color: var(--money);
-  color: var(--money);
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
   font-weight: 600;
 }
 
 /* plant lit when running: heavier teal frame and filled state shapes */
 .node-plant.on .node-box {
+  fill: var(--physical-soft);
   stroke: var(--physical);
   stroke-width: 2.5;
 }
@@ -464,35 +467,38 @@ body {
   color: var(--physical);
 }
 
+/* commitment state: off neutral, on physical, hot warning, warm info, cold strong line.
+   Each state also has its own shape and label. */
+.state-off { --state: var(--neutral); }
+.state-on { --state: var(--physical); }
+.state-hot { --state: var(--warning); }
+.state-warm { --state: var(--info); }
+.state-cold { --state: var(--line-strong); }
+
 .state.active > rect,
 .state.active > path,
 .state.active > circle {
-  fill: var(--text);
-  stroke: var(--text);
-}
-
-.node-plant.on .state.active > rect {
-  fill: var(--physical);
-  stroke: var(--physical);
+  fill: var(--state);
+  stroke: var(--state);
 }
 
 .state.active .state-name {
-  fill: var(--text);
+  fill: var(--text-primary);
   font-weight: 600;
 }
 
 .decision {
   margin: 0;
   padding: 9px 12px;
-  border: 1px solid var(--rule);
+  border: 1px solid var(--line);
   border-top: 0;
-  background: var(--panel);
+  background: var(--surface-panel);
   font-size: 12.5px;
 }
 
 .decision-label {
   margin-right: 8px;
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 10.5px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -504,9 +510,9 @@ body {
   align-items: center;
   gap: 10px 14px;
   padding: 10px 12px 8px;
-  border: 1px solid var(--rule);
+  border: 1px solid var(--line);
   border-top: 0;
-  background: var(--panel);
+  background: var(--surface-panel);
 }
 
 .scrubber-buttons {
@@ -515,12 +521,13 @@ body {
 }
 
 .scrubber button {
+  border-radius: var(--radius-control);
   min-width: 34px;
   height: 30px;
   padding: 0 10px;
-  border: 1px solid var(--rule-strong);
-  background: var(--ground);
-  color: var(--text);
+  border: 1px solid var(--line-strong);
+  background: var(--surface-app);
+  color: var(--text-primary);
   font: inherit;
   font-size: 12px;
   cursor: pointer;
@@ -528,14 +535,23 @@ body {
 
 .scrubber button.play {
   min-width: 64px;
+  border-color: var(--action-primary);
+  background: var(--action-primary);
+  color: var(--text-on-brand);
+  font-weight: 600;
+}
+
+.scrubber button.play:hover {
+  border-color: var(--action-primary-hover);
+  background: var(--action-primary-hover);
 }
 
 .scrubber button[aria-pressed="true"] {
-  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 .scrubber button:disabled {
-  color: var(--muted);
+  color: var(--text-muted);
   cursor: default;
   border-style: dashed;
 }
@@ -543,7 +559,7 @@ body {
 .scrubber-range {
   flex: 1 1 320px;
   min-width: 200px;
-  accent-color: var(--physical);
+  accent-color: var(--accent);
 }
 
 .scrubber-time {
@@ -552,7 +568,7 @@ body {
 }
 
 .scrubber-count {
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 11.5px;
 }
 
@@ -560,9 +576,9 @@ body {
   display: block;
   width: 100%;
   height: 14px;
-  border: 1px solid var(--rule);
+  border: 1px solid var(--line);
   border-top: 0;
-  background: var(--ground);
+  background: var(--surface-app);
 }
 
 .strip-on {
@@ -571,11 +587,11 @@ body {
 }
 
 .strip-cursor {
-  fill: var(--text);
+  fill: var(--accent);
 }
 
 .stack-plant {
-  border-left: 3px double var(--rule-strong);
+  border-left: 3px double var(--line-strong);
 }
 
 .stack-plant.on {

@@ -263,7 +263,7 @@ Do not reorder. Do not merge two milestones. Each milestone's doc states what yo
 5. **Distribution** (milestone 8+). Histogram of monthly/annual margin across paths with P5/P50/P95, hedged vs unhedged.
 6. **Bridge** (milestone 9). Waterfall between two selected runs.
 
-**Design direction.** Control-room, not dashboard-template: dark graphite ground with a light mode that keeps the same hierarchy; one warm signal hue for money (amber) and one cool hue for physical quantities (teal); monospace for all numbers with tabular figures; state encoded in shape as well as color (badges, stripes). No cream/paper, no serif display type, no card-shadow grids, no SaaS blue. Typography: a geometric sans for labels (e.g. Sora or IBM Plex Sans), a monospace for figures (JetBrains Mono or IBM Plex Mono). Numbers right-aligned, units always shown, negative values in parentheses with the hue, not red/green pairs alone. Every screen works at 1280 wide and degrades to a phone by stacking.
+**Design direction.** See `docs/brand.md`: it is the contract for color, type, layout and elevation, and for which token each UI role uses. Its tokens block is copied verbatim into `ui/styles/tokens.css`; every color in components is one of those variables, never a literal. Every screen works at 1280 wide and degrades to a phone by stacking.
 
 **Accessibility & craft:** keyboard scrubber, focus states, `prefers-reduced-motion` honored, aria labels on the diagram's nodes and arrows naming their current values.
 

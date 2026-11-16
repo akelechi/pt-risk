@@ -1,0 +1,54 @@
+:root {
+  /* surfaces */
+  --surface-app:     #f6faff;  --surface-panel:   #ffffff;  --surface-raised: #eff5fc;
+  --line:            #dce4ef;  --line-soft:       #e9eff7;  --line-strong:    #7a8ca6;
+  /* text */
+  --text-primary:    #0f1b2d;  --text-muted:      #515864;  --text-faint:     #5f6c7e;  --text-on-brand: #ffffff;
+  /* brand & action */
+  --brand-primary:   #174a93;  --brand-green:     #69df8e;  --navy-700: #0f3a7e;  --navy-900: #062a64;
+  --action-primary:  #174a93;  --action-primary-hover: #69df8e;
+  --accent:          #174a93;  --accent-soft:     #174a9314;
+  /* semantic (status), never used for branding */
+  --success: #1f7a45; --success-soft: #1f7a4514;
+  --warning: #9a6200; --warning-soft: #d9900014;
+  --danger:  #b03428; --danger-soft:  #c0392b14;
+  --info:    #1a6b8a; --info-soft:    #1a6b8a14;
+  --neutral: #6b7788;
+  /* charts */
+  --viz-1: #174a93; --viz-2: #69df8e; --viz-3: #fe9200; --viz-4: #521b92; --viz-5: #f37053; --viz-6: #0f3a7e;
+  --viz-grid: #e9eff7;  --gold: #9c7a2d;
+  /* ledger roles (see §2) */
+  --money:      #9a6200;   /* amber family, text-safe on light */
+  --money-soft: #fe920022;
+  --physical:   #174a93;   /* MW, MMBtu, bbl */
+  --physical-soft: #174a9314;
+  /* type */
+  --font-display: "brandon-grotesque", "Josefin Sans", "Poppins", sans-serif;
+  --font-ui:      "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono:    "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* spacing 4px scale, radii, shadow */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px;
+  --radius-control: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-pill: 360px;
+  --shadow-popover: 0 8px 24px 0 #06183a40;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark;
+  --surface-app: #0a1730; --surface-panel: #10203f; --surface-raised: #16294d;
+  --line: #24365a; --line-soft: #1b2b4b; --line-strong: #5b76a3;
+  --text-primary: #eaf1fb; --text-muted: #9fb3d1; --text-faint: #7a92b8; --text-on-brand: #062a64;
+  --action-primary: #69df8e; --action-primary-hover: #98c3eb; --accent: #69df8e; --accent-soft: #69df8e1f;
+  --success: #5fd48a; --success-soft: #5fd48a1f; --warning: #f2b441; --warning-soft: #f2b4411f;
+  --danger: #ff8a7a; --danger-soft: #c0392b24; --info: #5fb8dd; --info-soft: #5fb8dd1f; --neutral: #8a9bb5;
+  --viz-1: #98c3eb; --viz-4: #b48ce8; --viz-6: #5fb8dd; --viz-grid: #1b2b4b; --gold: #e3b457;
+  --money: #f2b441; --money-soft: #fe920029; --physical: #98c3eb; --physical-soft: #98c3eb1f;
+} }
+:root[data-theme="dark"] { color-scheme: dark;
+  --surface-app: #0a1730; --surface-panel: #10203f; --surface-raised: #16294d;
+  --line: #24365a; --line-soft: #1b2b4b; --line-strong: #5b76a3;
+  --text-primary: #eaf1fb; --text-muted: #9fb3d1; --text-faint: #7a92b8; --text-on-brand: #062a64;
+  --action-primary: #69df8e; --action-primary-hover: #98c3eb; --accent: #69df8e; --accent-soft: #69df8e1f;
+  --success: #5fd48a; --success-soft: #5fd48a1f; --warning: #f2b441; --warning-soft: #f2b4411f;
+  --danger: #ff8a7a; --danger-soft: #c0392b24; --info: #5fb8dd; --info-soft: #5fb8dd1f; --neutral: #8a9bb5;
+  --viz-1: #98c3eb; --viz-4: #b48ce8; --viz-6: #5fb8dd; --viz-grid: #1b2b4b; --gold: #e3b457;
+  --money: #f2b441; --money-soft: #fe920029; --physical: #98c3eb; --physical-soft: #98c3eb1f;
+}
+body { background: var(--surface-app); color: var(--text-primary); font-family: var(--font-ui); }

@@ -18,7 +18,9 @@ const LINE_HEIGHT = 17;
 const STATE_OFFSETS = [0, 43, 88, 143];
 
 function valueClass(item: Figure, value: string | null): string {
-  return `figure-value ${item.kind}${value === null ? " empty" : ""}`;
+  // A price ($/MWh, $/MMBtu) is a label, not a flow: it takes the text color (docs/brand.md §2).
+  const role = item.unit.startsWith("$/") ? "price" : item.kind;
+  return `figure-value ${role}${value === null ? " empty" : ""}`;
 }
 
 function FigureText({ item, hour, x, y, anchor }: {
@@ -94,7 +96,7 @@ function PlantState({ node, hour }: { node: FlowNode; hour: HourView | null }) {
         <g
           key={index}
           transform={`translate(${node.x + 20 + STATE_OFFSETS[index]} ${node.y + 82})`}
-          className={`state${state.active ? " active" : ""}`}
+          className={`state state-${state.name.toLowerCase()}${state.active ? " active" : ""}`}
         >
           {state.shape}
           <text x={10} y={4} className="state-name">
