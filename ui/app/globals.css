@@ -597,3 +597,151 @@ body {
 .stack-plant.on {
   border-left: 3px solid var(--physical);
 }
+
+/* ------------------------------------- DA price vs offer, over the run */
+
+.price-strip {
+  border: 1px solid var(--line);
+  border-top: 0;
+  background: var(--surface-panel);
+}
+
+.price-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 24px;
+  padding: 9px 12px 6px;
+}
+
+.price-title {
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.price-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 22px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.price-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.price-value {
+  min-width: 6ch;
+  color: var(--text-primary);
+  font-weight: 500;
+  text-align: right;
+}
+
+.price-swatch {
+  width: 14px;
+  height: 10px;
+  background: var(--money-soft);
+  border: 1px solid var(--money);
+}
+
+.price-plot {
+  position: relative;
+  height: 150px;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.price-plot svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.price-plot path,
+.price-plot line,
+.price-legend line {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.price-grid {
+  stroke: var(--viz-grid);
+  stroke-width: 1;
+}
+
+.price-lbmp {
+  stroke: var(--viz-1);
+  stroke-width: 1.5;
+}
+
+/* dashed as well as amber, so the two series differ by more than hue */
+.price-offer {
+  stroke: var(--viz-3);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.price-plot .price-running {
+  fill: var(--money-soft);
+}
+
+.price-cursor {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+.price-tick {
+  position: absolute;
+  left: 4px;
+  padding: 0 3px;
+  transform: translateY(-50%);
+  background: var(--surface-panel);
+  color: var(--text-muted);
+  font-size: 10.5px;
+  pointer-events: none;
+}
+
+.price-tick.top {
+  transform: none;
+}
+
+.price-tick.bottom {
+  transform: translateY(-100%);
+}
+
+.price-axis-unit {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  pointer-events: none;
+}
+
+.price-days {
+  position: relative;
+  height: 18px;
+  border-top: 1px solid var(--line);
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+.price-days span {
+  position: absolute;
+  top: 2px;
+  padding-left: 3px;
+}
+
+@media (max-width: 760px) {
+  .price-days span:nth-child(even) {
+    display: none;
+  }
+}

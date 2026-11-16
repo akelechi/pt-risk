@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FlowDiagram } from "./FlowDiagram";
+import { PriceStrip } from "./PriceStrip";
 import type { HourView } from "@/lib/api";
 import { formatHour } from "@/lib/format";
 
@@ -86,6 +87,14 @@ export function FlowExplorer({ hours, initialIndex = 0 }: { hours: HourView[]; i
           hour {index + 1} of {hours.length}
         </span>
       </div>
+      <PriceStrip
+        hours={hours}
+        index={Math.min(index, last)}
+        onSelect={(position) => {
+          setPlaying(false);
+          setIndex(position);
+        }}
+      />
       {/* On/off strip: one tick per hour, tall where the unit runs; the selected hour is marked. */}
       <svg className="strip" viewBox={`0 0 ${hours.length} 12`} preserveAspectRatio="none" aria-hidden="true">
         {hours.map((item, position) =>
