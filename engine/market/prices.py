@@ -52,3 +52,16 @@ class GasPrices:
                 f"older than {self._max_staleness.days} days"
             )
         return float(self._prices[index]), gas_row_ref(self._source_ids[index], self._point, published)
+
+
+def delivered_gas_price_usd_per_mmbtu(
+    index_price_usd_per_mmbtu: float, basis_adder_usd_per_mmbtu_by_month: dict[int, float], gas_day: date
+) -> tuple[float, float]:
+    """(delivered price, basis adder), both $/MMBtu, for `gas_day`.
+
+    Delivered gas = published index price + the plant config's assumed adder for the gas
+    day's calendar month (Q-028). Milestone 5 replaces the adder with a published
+    delivered index when module `gas_basis` is on.
+    """
+    adder = float(basis_adder_usd_per_mmbtu_by_month[gas_day.month])
+    return index_price_usd_per_mmbtu + adder, adder

@@ -14,6 +14,9 @@ from engine.market import settlement
 from engine.plant import cost
 from engine.plant.params import UnitParams
 
+# Config leaf behind the basis part of the delivered gas price (ledger `ref`).
+GAS_BASIS_PARAM = "fuel.gas_basis_adder_usd_per_mmbtu_by_month"
+
 MW_TOLERANCE = 1e-6
 
 
@@ -104,7 +107,7 @@ def transition(
         )
         entries.append(
             _entry(inputs, unit.id, "fuel_cost_gas", fuel_mmbtu, "MMBtu",
-                   inputs.gas_price_usd_per_mmbtu, "USD/MMBtu", -1, {"gas_price": inputs.gas_price_ref})
+                   inputs.gas_price_usd_per_mmbtu, "USD/MMBtu", -1, {"gas_price": inputs.gas_price_ref, "gas_basis": GAS_BASIS_PARAM})
         )
         entries.append(
             _entry(inputs, unit.id, "vom", energy_mwh, "MWh",

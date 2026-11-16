@@ -205,8 +205,12 @@ export interface components {
             entries: components["schemas"]["LedgerEntry"][];
             /** Fuel Cost Usd */
             fuel_cost_usd: number;
+            /** Gas Basis Adder Usd Per Mmbtu */
+            gas_basis_adder_usd_per_mmbtu: number;
             /** Gas Burn Mmbtu */
             gas_burn_mmbtu: number;
+            /** Gas Index Price Usd Per Mmbtu */
+            gas_index_price_usd_per_mmbtu: number;
             /** Gas Price Usd Per Mmbtu */
             gas_price_usd_per_mmbtu: number;
             /** Hour Energy Margin Usd */

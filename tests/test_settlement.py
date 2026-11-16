@@ -64,7 +64,7 @@ def test_hand_day_hour_by_hour(toy_unit, hand_lbmps):
 
     fuel = next(e for e in ledger.entries if e.ts_utc == at_450.ts_utc and e.line == "fuel_cost_gas")
     assert (fuel.quantity, fuel.quantity_unit, fuel.price, fuel.price_unit) == (pytest.approx(4725.0), "MMBtu", 4.00, "USD/MMBtu")
-    assert fuel.ref == {"gas_price": "hand:gas"}
+    assert fuel.ref == {"gas_price": "hand:gas", "gas_basis": "fuel.gas_basis_adder_usd_per_mmbtu_by_month"}
     revenue = next(e for e in ledger.entries if e.ts_utc == at_450.ts_utc and e.line == "da_energy_rev")
     assert (revenue.quantity, revenue.quantity_unit, revenue.price) == (450.0, "MWh", 45.50)
     assert revenue.ref == {"lbmp_da": "hand:lbmp:8"}

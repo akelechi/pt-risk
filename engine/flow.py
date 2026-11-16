@@ -13,6 +13,8 @@ from decimal import Decimal
 from engine.contracts import HourFlow, LedgerEntry, RunResult
 from engine.run import ENERGY_MARGIN_LINES
 
+from engine.plant.state import GAS_BASIS_PARAM
+
 FUEL_LINES = ("fuel_cost_gas", "fuel_cost_oil")
 
 
@@ -51,13 +53,19 @@ def hour_flows(result: RunResult, unit_id: str | None = None, month: str | None 
                 da_schedule_mw=state.da_schedule_mw,
                 output_mw=state.output_mw,
                 gas_price_usd_per_mmbtu=inputs.gas_price_usd_per_mmbtu,
+                gas_index_price_usd_per_mmbtu=inputs.gas_index_price_usd_per_mmbtu,
+                gas_basis_adder_usd_per_mmbtu=inputs.gas_basis_adder_usd_per_mmbtu,
                 gas_burn_mmbtu=sum(entry.quantity for entry in fuel_entries if entry.line == "fuel_cost_gas"),
                 da_energy_rev_usd=_sum_usd(entries, ("da_energy_rev",)),
                 fuel_cost_usd=_sum_usd(entries, FUEL_LINES),
                 vom_usd=_sum_usd(entries, ("vom",)),
                 hour_energy_margin_usd=_sum_usd(entries, ENERGY_MARGIN_LINES),
                 entries=entries,
-                input_refs={"lbmp_da": inputs.da_lbmp_ref, "gas_price": inputs.gas_price_ref},
+                input_refs={
+                    "lbmp_da": inputs.da_lbmp_ref,
+                    "gas_price": inputs.gas_price_ref,
+                    "gas_basis": GAS_BASIS_PARAM,
+                },
             )
         )
     return flows

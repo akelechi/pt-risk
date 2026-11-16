@@ -48,8 +48,8 @@ optimization is not simulated. Public data only.
   weekends or holidays in the table. From milestone 1 the engine will apply the last
   published price on or before each gas day (Q-012); the table keeps 31 days before the
   window so the first days of the window have one.
-* Delivered basis is not loaded. It is an `assumed` monthly adder in the plant config
-  until milestone 5.
+* Delivered basis is not loaded. Until milestone 5 it is an `assumed` monthly adder in
+  the plant config, added to Henry Hub for every gas day (Q-028).
 
 ### 3.3 EIA plant reference (`eia_plant_reference`)
 
@@ -103,7 +103,11 @@ until their milestone; they never report `pass` for something that was not check
   the physical fuel.
 * **Step price** = pooled incremental heat rate x fuel price + VOM, rounded to the cent
   (Q-027). CO2 cost is zero until an RGGI price table is loaded (Q-024).
-* **Fuel price** = Henry Hub flat while module `gas_basis` is off (Q-028). The gas day is
+* **Fuel price** = Henry Hub + the plant config's assumed basis adder for the gas day's
+  calendar month, while module `gas_basis` is off (Q-028, answered 2026-11-16). Hourly
+  inputs keep the index price, the adder and their sum; the sum is what offers and fuel
+  cost use. Module `gas_basis` (milestone 5) replaces the adder with a published
+  delivered index. The gas day is
   the local calendar day (Q-023); a day with no published price uses the last published
   price on or before it, at most 7 days old (Q-012).
 * **Availability** = Pmax x (1 - EFOR) in every hour (Q-025), until seeded outages in
@@ -120,7 +124,7 @@ until their milestone; they never report `pass` for something that was not check
 
 * Actual output = DA schedule = the solver's target. `da_energy_rev = da_mw x 1 h x
   da_lbmp` at the unit's own bus (Q-005).
-* Booked per running hour: `da_energy_rev` (+), `fuel_cost_gas` (-, MMBtu x gas price),
+* Booked per running hour: `da_energy_rev` (+), `fuel_cost_gas` (-, MMBtu x delivered gas price),
   `vom` (-, MWh x VOM). Nothing is booked in an idle hour.
 * **Energy margin** = `da_energy_rev + rt_balancing + fuel_cost_* + start_cost +
   no_load_cost + vom + emissions_cost` (costs are negative entries).

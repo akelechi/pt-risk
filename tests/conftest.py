@@ -137,5 +137,6 @@ def hour_inputs_for(hour: HourPrice, unit_id: str, available_mw: float,
     return HourInputs(
         ts_utc=hour.ts_utc, ts_local=hour.ts_local, unit_id=unit_id,
         da_lbmp_usd_per_mwh=hour.da_lbmp_usd_per_mwh, da_lbmp_ref=hour.da_lbmp_ref,
-        gas_price_usd_per_mmbtu=gas_usd_per_mmbtu, gas_price_ref="hand:gas", available_mw=available_mw,
+        gas_price_usd_per_mmbtu=gas_usd_per_mmbtu, gas_index_price_usd_per_mmbtu=gas_usd_per_mmbtu,
+        gas_basis_adder_usd_per_mmbtu=0.0, gas_price_ref="hand:gas", available_mw=available_mw,
     )

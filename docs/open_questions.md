@@ -170,11 +170,14 @@ loads an RGGI price table.
   defined and does not depend on floating-point noise.
 - Confirm: NYISO bid rules.
 
-**Q-028 Fuel price before milestone 5** (M1, open).
-- Assumption: delivered gas = Henry Hub flat while module `gas_basis` is off; the config's
-  assumed monthly basis adder is NOT applied yet.
-- Consequence: the January margin is far above anything plausible (see milestone note).
-- Confirm: owner; alternative is to apply the assumed adder from milestone 1.
+**Q-028 Fuel price before milestone 5** (M1, answered 2026-11-16: realistic values until milestone 5).
+- Answer applied: delivered gas = Henry Hub + the config's assumed monthly basis adder
+  ($3 Nov-Mar, $1 Apr-Oct) while module `gas_basis` is off. January 2025 margin moved
+  from $29,328,063.66 to $18,408,203.95 (see docs/milestones/01.md).
+- My reading of the answer: "real values" = a published delivered index (milestone 5);
+  "realistic values" = the assumed adder. Owner to correct if something else was meant.
+- Still open: the adder's size is a placeholder; a flat adder does not follow winter
+  price spikes. Confirmed by a public delivered index in milestone 5.
 
 **Q-029 Run result size** (M1, open).
 - Assumption: a stored run keeps states, decisions, hourly inputs and offers as JSON.

@@ -98,7 +98,7 @@ def test_flow_returns_one_payload_per_hour(client: TestClient, m1_run: str):
         assert flow.output_mw == flow.da_schedule_mw == flow.state.output_mw
         assert flow.hour_energy_margin_usd == pytest.approx(flow.da_energy_rev_usd + flow.fuel_cost_usd + flow.vom_usd, abs=0.005)
         assert flow.offered_mw == 553.32 and flow.offer_min_price_usd_per_mwh <= flow.offer_max_price_usd_per_mwh
-        assert set(flow.input_refs) == {"lbmp_da", "gas_price"}
+        assert set(flow.input_refs) == {"lbmp_da", "gas_price", "gas_basis"}
         assert (len(flow.entries) == 3) == flow.state.committed
 
 

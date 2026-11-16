@@ -91,3 +91,13 @@ def test_deterministic_availability_is_pmax_times_one_minus_efor(toy_unit, real_
 @pytest.mark.parametrize("hours,expected", [(0, "hot"), (12, "hot"), (13, "warm"), (72, "warm"), (73, "cold"), (168, "cold")])
 def test_thermal_state_thresholds(real_unit, hours, expected):
     assert cost.thermal_state(hours, real_unit) == expected
+
+
+def test_delivered_gas_price_adds_the_month_adder():
+    from datetime import date
+
+    from engine.market.prices import delivered_gas_price_usd_per_mmbtu
+
+    adders = {month: (3.0 if month in (1, 2, 3, 11, 12) else 1.0) for month in range(1, 13)}
+    assert delivered_gas_price_usd_per_mmbtu(4.0, adders, date(2025, 1, 31)) == (7.0, 3.0)
+    assert delivered_gas_price_usd_per_mmbtu(4.0, adders, date(2025, 4, 1)) == (5.0, 1.0)

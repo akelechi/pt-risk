@@ -43,6 +43,7 @@ Milestone 0 complete on branch `milestone-0`.
 
 ## Review
 
-- January 2025 energy margin, U1: $29,328,063.66 (Henry Hub flat; not a realistic figure, see note).
+- January 2025 energy margin, U1: $18,408,203.95 (Henry Hub + assumed $3 basis, Q-028 answered 2026-11-16; first cut at Henry flat was $29,328,063.66).
+- UI restyled to `docs/brand.md` tokens (`ui/styles/tokens.css`); no literal colors in components.
 - 117 tests green; invariants 3, 4, 6, 7, 8 pass on the real month.
 - Not done: arrow click-through panel; CO2 cost; light mode still not visually verified.

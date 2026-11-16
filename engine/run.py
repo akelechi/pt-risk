@@ -37,7 +37,7 @@ from engine.inputs import store
 from engine.ledger import reconcile
 from engine.ledger.ledger import Ledger
 from engine.market.offer import build_offer
-from engine.market.prices import GasPrices, lbmp_row_ref
+from engine.market.prices import GasPrices, delivered_gas_price_usd_per_mmbtu, lbmp_row_ref
 from engine.plant import commitment, cost
 from engine.plant.params import Plant, flatten_leaves, parse_plant, status_counts
 from engine.plant.state import initial_state, transition
@@ -48,7 +48,8 @@ HOURLY_TABLES = ("lbmp_da", "lbmp_rt")
 DAILY_TABLES = ("gas_price",)
 RUN_ID_LENGTH = 12
 IMPLEMENTED_MODULES = {"dispatch"}
-# Until the gas_basis module (milestone 5), delivered gas is priced at this point flat.
+# Index the assumed basis adder is added to. Module gas_basis (milestone 5) replaces the
+# adder with a published delivered index.
 BASE_GAS_POINT = "HENRY"
 ENERGY_MARGIN_LINES = (
     "da_energy_rev",
@@ -124,7 +125,7 @@ def _day_prices(unit_id: str, unit_rows: pd.DataFrame) -> list[DayPrices]:
 def _execute(scenario: Scenario, plant: Plant, market_raw: dict, inputs: dict[str, pd.DataFrame]) -> Execution:
     """Run the state machine over the scenario window, unit by unit, day by day, hour by hour.
 
-    Per unit and local day: gas price for the day -> offer -> commitment solver -> one
+    Per unit and local day: delivered gas price for the day (index + assumed basis) -> offer -> commitment solver -> one
     transition per hour. Ledger entries come only from `transition`.
     """
     switched_on = {name for name, on in scenario.modules.model_dump().items() if on}
@@ -136,6 +137,7 @@ def _execute(scenario: Scenario, plant: Plant, market_raw: dict, inputs: dict[st
         return execution
 
     gas = GasPrices(inputs["gas_price"], BASE_GAS_POINT, market_raw["gas_price_max_staleness_days"])
+    basis_adder_by_month = plant.fuel.gas_basis_adder_usd_per_mmbtu_by_month.value
     ptid_of_unit = {item["unit_id"]: item["ptid"] for item in market_raw["locations"] if item.get("unit_id")}
     lbmp_da = inputs["lbmp_da"]
 
@@ -152,7 +154,10 @@ def _execute(scenario: Scenario, plant: Plant, market_raw: dict, inputs: dict[st
         state = initial_state(unit, first_hour.ts_utc, first_hour.ts_local, scenario.initial_hours_offline_h)
 
         for day in days:
-            gas_price, gas_ref = gas.on(day.local_date)
+            gas_index_price, gas_ref = gas.on(day.local_date)
+            gas_price, gas_basis_adder = delivered_gas_price_usd_per_mmbtu(
+                gas_index_price, basis_adder_by_month, day.local_date
+            )
             offer = build_offer(
                 unit, day.local_date, "gas", gas_price, gas_ref, available_mw, market_raw["offer_price_decimals"]
             )
@@ -166,6 +171,8 @@ def _execute(scenario: Scenario, plant: Plant, market_raw: dict, inputs: dict[st
                     da_lbmp_usd_per_mwh=hour.da_lbmp_usd_per_mwh,
                     da_lbmp_ref=hour.da_lbmp_ref,
                     gas_price_usd_per_mmbtu=gas_price,
+                    gas_index_price_usd_per_mmbtu=gas_index_price,
+                    gas_basis_adder_usd_per_mmbtu=gas_basis_adder,
                     gas_price_ref=gas_ref,
                     available_mw=available_mw,
                 )

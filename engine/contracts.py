@@ -256,9 +256,18 @@ class HourInputs(Stamped):
     unit_id: str
     da_lbmp_usd_per_mwh: float
     da_lbmp_ref: str
-    gas_price_usd_per_mmbtu: float
+    gas_price_usd_per_mmbtu: float  # delivered: index + basis adder; the price the plant pays
+    gas_index_price_usd_per_mmbtu: float  # published index price (Henry Hub)
+    gas_basis_adder_usd_per_mmbtu: float  # assumed monthly adder from the plant config (Q-028)
     gas_price_ref: str
     available_mw: float = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _delivered_is_index_plus_basis(self) -> "HourInputs":
+        expected = self.gas_index_price_usd_per_mmbtu + self.gas_basis_adder_usd_per_mmbtu
+        if abs(self.gas_price_usd_per_mmbtu - expected) > 1e-9:
+            raise ValueError("gas_price_usd_per_mmbtu must equal index price + basis adder")
+        return self
 
 
 # -------------------------------------------------------------------------- ledger
@@ -451,7 +460,9 @@ class HourFlow(Stamped):
     offer_blocks: list[OfferBlock]
     da_schedule_mw: float
     output_mw: float
-    gas_price_usd_per_mmbtu: float
+    gas_price_usd_per_mmbtu: float  # delivered: index + basis adder
+    gas_index_price_usd_per_mmbtu: float
+    gas_basis_adder_usd_per_mmbtu: float
     gas_burn_mmbtu: float
     da_energy_rev_usd: float
     fuel_cost_usd: float  # negative: a cost

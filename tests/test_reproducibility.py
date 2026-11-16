@@ -172,3 +172,11 @@ def test_two_units_dispatch_independently(m1_scenario):
     assert {r.invariant_id: r.status for r in both.meta.invariants}[3] == "pass"
     by_unit = {unit: max(s.available_mw for s in both.states if s.unit_id == unit) for unit in ("U1", "U2")}
     assert by_unit == {"U1": 553.32, "U2": 546.93}
+
+
+def test_m1_gas_is_henry_plus_the_assumed_monthly_basis(m1_result):
+    """Q-028: delivered gas = Henry Hub + the config's assumed adder for the month (3 in January)."""
+    assert m1_result.hour_inputs
+    for inputs in m1_result.hour_inputs:
+        assert inputs.gas_basis_adder_usd_per_mmbtu == 3.0
+        assert inputs.gas_price_usd_per_mmbtu == pytest.approx(inputs.gas_index_price_usd_per_mmbtu + 3.0, abs=1e-9)

@@ -122,7 +122,7 @@ export const NODES: FlowNode[] = [
   {
     id: "gas",
     title: "GAS",
-    subtitle: "Henry Hub, flat",
+    subtitle: "Henry Hub + basis",
     icon: "gas",
     x: 540, y: 480, width: 120, height: 100,
     figures: [],
@@ -200,7 +200,7 @@ export const ARROWS: FlowArrow[] = [
     from: "gas", to: "plant",
     path: "M600 480 V412 Q600 400 612 400 H638 Q650 400 650 388 V348",
     kind: "money",
-    figures: [figure("Gas (Henry Hub)", "$/MMBtu", "money", "gas_price_usd_per_mmbtu"), figure("Gas burn", "MMBtu", "physical", "gas_burn_mmbtu")],
+    figures: [figure("Gas, assumed basis", "$/MMBtu", "money", "gas_price_usd_per_mmbtu"), figure("Gas burn", "MMBtu", "physical", "gas_burn_mmbtu")],
     labelX: 586, labelY: 392, labelAnchor: "end",
     milestone: 1,
   },

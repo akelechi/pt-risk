@@ -96,8 +96,16 @@
             "title": "Fuel Cost Usd",
             "type": "number"
           },
+          "gas_basis_adder_usd_per_mmbtu": {
+            "title": "Gas Basis Adder Usd Per Mmbtu",
+            "type": "number"
+          },
           "gas_burn_mmbtu": {
             "title": "Gas Burn Mmbtu",
+            "type": "number"
+          },
+          "gas_index_price_usd_per_mmbtu": {
+            "title": "Gas Index Price Usd Per Mmbtu",
             "type": "number"
           },
           "gas_price_usd_per_mmbtu": {
@@ -188,6 +196,8 @@
           "da_schedule_mw",
           "output_mw",
           "gas_price_usd_per_mmbtu",
+          "gas_index_price_usd_per_mmbtu",
+          "gas_basis_adder_usd_per_mmbtu",
           "gas_burn_mmbtu",
           "da_energy_rev_usd",
           "fuel_cost_usd",
