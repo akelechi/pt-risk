@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EngineChecks } from "@/components/EngineChecks";
 import { FlowDiagram } from "@/components/FlowDiagram";
 import { FlowExplorer } from "@/components/FlowExplorer";
 import { Header } from "@/components/Header";
@@ -82,20 +83,6 @@ export default async function FlowPage({ searchParams }: { searchParams: Promise
                 <dt>Energy margin, run</dt>
                 <dd className="num money-text">{formatNumber(run.energy_margin_usd, "usd")} $</dd>
               </div>
-              <div>
-                <dt>Invariants</dt>
-                <dd className="checks">
-                  {meta.data.invariants.map((item) => (
-                    <span key={item.invariant_id} className={`check ${item.status}`} title={`${item.name}: ${item.detail}`}>
-                      <span aria-hidden="true">{item.status === "pass" ? "✓" : item.status === "fail" ? "✕" : "·"}</span>
-                      <span className="num">{item.invariant_id}</span>
-                      <span className="sr-only">
-                        {item.name}: {item.status.replace("_", " ")}
-                      </span>
-                    </span>
-                  ))}
-                </dd>
-              </div>
             </dl>
           ) : (
             <p>
@@ -105,6 +92,7 @@ export default async function FlowPage({ searchParams }: { searchParams: Promise
             </p>
           )}
         </div>
+        {meta?.online && <EngineChecks invariants={meta.data.invariants} />}
         {hours.length > 0 ? (
           <FlowExplorer
             hours={hours}

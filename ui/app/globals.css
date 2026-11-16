@@ -883,3 +883,99 @@ body {
   margin-left: 12px;
   background: var(--viz-3);
 }
+
+/* ------------------------------------------------- engine self-checks */
+
+.engine-checks {
+  margin: 0 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+}
+
+.engine-checks.failing {
+  border: 2px solid var(--danger);
+}
+
+.engine-checks summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  padding: 8px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.engine-checks summary::-webkit-details-marker {
+  display: none;
+}
+
+.engine-checks-title {
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.engine-checks-count {
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.engine-checks .checks {
+  flex-wrap: wrap;
+}
+
+.engine-checks-hint {
+  margin-left: auto;
+  color: var(--accent);
+  font-size: 12px;
+  text-decoration: underline;
+}
+
+.engine-checks[open] .engine-checks-hint {
+  text-decoration: none;
+}
+
+.engine-checks-intro {
+  max-width: 90ch;
+  margin: 0;
+  padding: 2px 12px 8px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.engine-checks-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 10px 20px;
+  margin: 0;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--line);
+  list-style: none;
+}
+
+.engine-checks-list p {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+}
+
+.engine-checks-status {
+  margin-left: 8px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.engine-checks-list li.fail .engine-checks-status {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.engine-checks-list .engine-checks-detail {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
