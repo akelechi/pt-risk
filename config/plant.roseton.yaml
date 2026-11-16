@@ -1,0 +1,129 @@
+# Roseton Generating Station — plant parameters with provenance.
+#
+# Every leaf carries: value, unit, status (public | assumed | confirmed), source, as_of.
+# The loader (engine/plant/params.py) rejects any leaf missing one of the five, and any
+# bare value outside a leaf. `id` and `name` are identifiers, not parameters.
+#
+# Values marked `assumed` come from the build brief and are placeholders until confirmed;
+# each is listed in docs/open_questions.md with how it would be confirmed.
+
+name: Roseton
+# EIA plant code (EIA-860 2024, file 2___Plant, "Roseton Generating Facility"). Identifier.
+eia_plant_code: 8006
+
+units:
+  - id: U1
+    pmax_mw:              {value: 600, unit: MW, status: assumed, source: "EIA-860 nameplate ~600; confirm net", as_of: 2026-11-15}
+    pmin_mw:              {value: 150, unit: MW, status: assumed, source: "typical 25% of Pmax for 1970s steam", as_of: 2026-11-15}
+    heat_rate_curve:
+      value:
+        - {output_mw: 150, incremental_heat_rate_mmbtu_per_mwh: 11.4}
+        - {output_mw: 300, incremental_heat_rate_mmbtu_per_mwh: 10.1}
+        - {output_mw: 450, incremental_heat_rate_mmbtu_per_mwh: 10.0}
+        - {output_mw: 600, incremental_heat_rate_mmbtu_per_mwh: 10.8}
+      unit: MMBtu/MWh
+      status: assumed
+      source: "shape typical; level from EIA-923 annual avg ~10.5"
+      as_of: 2026-11-15
+    no_load_mmbtu_per_hr: {value: 400, unit: MMBtu/h, status: assumed, source: "intercept of I/O curve, typical", as_of: 2026-11-15}
+    start:
+      hot:
+        value: {hours_offline_max_h: 12, start_fuel_mmbtu: 1500, start_other_cost_usd: 8000}
+        unit: "h; MMBtu; USD"
+        status: assumed
+        source: "typical"
+        as_of: 2026-11-15
+      warm:
+        value: {hours_offline_max_h: 72, start_fuel_mmbtu: 3000, start_other_cost_usd: 15000}
+        unit: "h; MMBtu; USD"
+        status: assumed
+        source: "typical"
+        as_of: 2026-11-15
+      cold:
+        value: {hours_offline_max_h: null, start_fuel_mmbtu: 5000, start_other_cost_usd: 25000}
+        unit: "h; MMBtu; USD"
+        status: assumed
+        source: "typical"
+        as_of: 2026-11-15
+    min_up_hours:         {value: 8, unit: h, status: assumed, source: "typical for 1970s steam", as_of: 2026-11-15}
+    min_down_hours:       {value: 6, unit: h, status: assumed, source: "typical for 1970s steam", as_of: 2026-11-15}
+    ramp_mw_per_min:      {value: 5, unit: MW/min, status: assumed, source: "typical for 1970s steam", as_of: 2026-11-15}
+    vom_usd_per_mwh:      {value: 3.0, unit: USD/MWh, status: assumed, source: "typical for gas/oil steam", as_of: 2026-11-15}
+    efor:                 {value: 0.10, unit: fraction, status: assumed, source: "old steam typical", as_of: 2026-11-15}
+
+  - id: U2
+    pmax_mw:              {value: 600, unit: MW, status: assumed, source: "EIA-860 nameplate ~600; confirm net", as_of: 2026-11-15}
+    pmin_mw:              {value: 150, unit: MW, status: assumed, source: "typical 25% of Pmax for 1970s steam", as_of: 2026-11-15}
+    heat_rate_curve:
+      value:
+        - {output_mw: 150, incremental_heat_rate_mmbtu_per_mwh: 11.4}
+        - {output_mw: 300, incremental_heat_rate_mmbtu_per_mwh: 10.1}
+        - {output_mw: 450, incremental_heat_rate_mmbtu_per_mwh: 10.0}
+        - {output_mw: 600, incremental_heat_rate_mmbtu_per_mwh: 10.8}
+      unit: MMBtu/MWh
+      status: assumed
+      source: "shape typical; level from EIA-923 annual avg ~10.5; assumed identical to U1"
+      as_of: 2026-11-15
+    no_load_mmbtu_per_hr: {value: 400, unit: MMBtu/h, status: assumed, source: "intercept of I/O curve, typical", as_of: 2026-11-15}
+    start:
+      hot:
+        value: {hours_offline_max_h: 12, start_fuel_mmbtu: 1500, start_other_cost_usd: 8000}
+        unit: "h; MMBtu; USD"
+        status: assumed
+        source: "typical"
+        as_of: 2026-11-15
+      warm:
+        value: {hours_offline_max_h: 72, start_fuel_mmbtu: 3000, start_other_cost_usd: 15000}
+        unit: "h; MMBtu; USD"
+        status: assumed
+        source: "typical"
+        as_of: 2026-11-15
+      cold:
+        value: {hours_offline_max_h: null, start_fuel_mmbtu: 5000, start_other_cost_usd: 25000}
+        unit: "h; MMBtu; USD"
+        status: assumed
+        source: "typical"
+        as_of: 2026-11-15
+    min_up_hours:         {value: 8, unit: h, status: assumed, source: "typical for 1970s steam", as_of: 2026-11-15}
+    min_down_hours:       {value: 6, unit: h, status: assumed, source: "typical for 1970s steam", as_of: 2026-11-15}
+    ramp_mw_per_min:      {value: 5, unit: MW/min, status: assumed, source: "typical for 1970s steam", as_of: 2026-11-15}
+    vom_usd_per_mwh:      {value: 3.0, unit: USD/MWh, status: assumed, source: "typical for gas/oil steam", as_of: 2026-11-15}
+    efor:                 {value: 0.10, unit: fraction, status: assumed, source: "old steam typical", as_of: 2026-11-15}
+
+fuel:
+  gas_point:
+    {value: TRANSCO_Z6_NY, unit: enum, status: assumed, source: "nearest major index; plant's actual point to confirm", as_of: 2026-11-15}
+  gas_basis_adder_usd_per_mmbtu_by_month:
+    value: {1: 3, 2: 3, 3: 3, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1, 11: 3, 12: 3}
+    unit: USD/MMBtu
+    status: assumed
+    source: "placeholder winter/summer adder over Henry Hub until a public delivered index is loaded (milestone 5)"
+    as_of: 2026-11-15
+  oil_heat_rate_penalty_fraction:
+    {value: 0.03, unit: fraction, status: assumed, source: "typical heat-rate penalty on residual oil vs gas", as_of: 2026-11-15}
+  oil_tank_capacity_bbl:
+    {value: 1000000, unit: bbl, status: assumed, source: "order of magnitude; confirm", as_of: 2026-11-15}
+  oil_mmbtu_per_bbl:
+    {value: 6.3, unit: MMBtu/bbl, status: public, source: "No.6 fuel oil heat content", as_of: 2026-11-15}
+  oil_permit_hours_per_year:
+    {value: 720, unit: h/year, status: assumed, source: "placeholder; confirm against the Title V air permit", as_of: 2026-11-15}
+  barge_lead_days:
+    {value: 5, unit: days, status: assumed, source: "placeholder barge lead time; confirm", as_of: 2026-11-15}
+  transport_demand_charge_usd_per_mmbtu_day:
+    {value: 0.0, unit: USD/MMBtu-day, status: assumed, source: "unknown whether FT held; 0 until confirmed", as_of: 2026-11-15}
+
+emissions:
+  co2_t_per_mmbtu:
+    value: {gas_t_per_mmbtu: 0.0531, oil_t_per_mmbtu: 0.0741}
+    unit: t/MMBtu
+    status: public
+    source: "EPA factors"
+    as_of: 2026-11-15
+
+capacity:
+  ucap_mw:  {value: 1100, unit: MW, status: assumed, source: "ICAP 1200 x (1 - EFORd)", as_of: 2026-11-15}
+  locality: {value: "G-J", unit: enum, status: public, source: "NYISO locality map", as_of: 2026-11-15}
+
+fixed:
+  fixed_om_usd_per_kw_year:
+    {value: 45, unit: USD/kW-year, status: assumed, source: "typical fixed O&M for gas/oil steam", as_of: 2026-11-15}

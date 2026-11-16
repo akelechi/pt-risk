@@ -1,0 +1,64 @@
+# NYISO market facts used by loaders and (later) settlement.
+# Rules of the market live here; plant facts live in plant.roseton.yaml.
+
+market: NYISO
+timezone: America/New_York
+# NYISO hourly LBMP files are stamped hour-beginning in local prevailing time.
+timestamp_convention: hour_beginning
+
+# Locations curated from the public LBMP files. PTIDs verified against
+# http://mis.nyiso.com/public/csv/generator/generator.csv on 2026-11-15.
+locations:
+  - {name: "ROSETON___1", ptid: 23587, type: gen, unit_id: U1}
+  - {name: "ROSETON___2", ptid: 23588, type: gen, unit_id: U2}
+  - {name: "HUD VL", ptid: 61758, type: zone, unit_id: null}
+
+# Window of public data curated into data/curated/ (local dates, inclusive). Q-002.
+data_window:
+  start: 2025-01-01
+  end: 2025-12-31
+# Henry Hub is kept from this many days before the window so that weekends and
+# holidays at the window start have a prior published price (Q-012).
+gas_lookback_days: 31
+
+# LBMP = energy + losses - congestion in NYISO's published sign convention (Q-004),
+# so energy = lbmp - loss + congestion. The energy (reference-bus) price is the same at
+# every location in an hour; the loader checks that. Each of the three published terms is
+# rounded to the cent (+/-0.005), so the energy recovered at two locations can differ by
+# up to 2 x 3 x 0.005 = 0.03 $/MWh. A wrong congestion sign shows up as dollars, not cents.
+energy_identity_tolerance_usd_per_mwh: 0.031
+
+# Public sources. {yyyymm} is substituted per month of the data window.
+sources:
+  lbmp_da_gen:
+    url: "http://mis.nyiso.com/public/csv/damlbmp/{yyyymm}01damlbmp_gen_csv.zip"
+    cadence: monthly
+    raw_path: "nyiso/damlbmp_gen/{yyyymm}01damlbmp_gen_csv.zip"
+  lbmp_da_zone:
+    url: "http://mis.nyiso.com/public/csv/damlbmp/{yyyymm}01damlbmp_zone_csv.zip"
+    cadence: monthly
+    raw_path: "nyiso/damlbmp_zone/{yyyymm}01damlbmp_zone_csv.zip"
+  lbmp_rt_gen:
+    url: "http://mis.nyiso.com/public/csv/rtlbmp/{yyyymm}01rtlbmp_gen_csv.zip"
+    cadence: monthly
+    raw_path: "nyiso/rtlbmp_gen/{yyyymm}01rtlbmp_gen_csv.zip"
+  lbmp_rt_zone:
+    url: "http://mis.nyiso.com/public/csv/rtlbmp/{yyyymm}01rtlbmp_zone_csv.zip"
+    cadence: monthly
+    raw_path: "nyiso/rtlbmp_zone/{yyyymm}01rtlbmp_zone_csv.zip"
+  nyiso_generators:
+    url: "http://mis.nyiso.com/public/csv/generator/generator.csv"
+    cadence: once
+    raw_path: "nyiso/generator.csv"
+  henry_hub:
+    url: "https://www.eia.gov/dnav/ng/hist_xls/RNGWHHDd.xls"
+    cadence: once
+    raw_path: "eia/RNGWHHDd.xls"
+  eia860:
+    url: "https://www.eia.gov/electricity/data/eia860/archive/xls/eia8602024.zip"
+    cadence: once
+    raw_path: "eia/eia8602024.zip"
+  eia923:
+    url: "https://www.eia.gov/electricity/data/eia923/archive/xls/f923_2024.zip"
+    cadence: once
+    raw_path: "eia/f923_2024.zip"

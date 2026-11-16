@@ -1,0 +1,95 @@
+{
+  "tables": {
+    "lbmp_da": {
+      "snapshot_id": "4f87687d64aafa9c",
+      "rows": 26280,
+      "raw_source_ids": [
+        "0428dcfeeb1507c5",
+        "1c181ecbd072c21b",
+        "3480eeeb26bfcd01",
+        "362255e3e380d7d9",
+        "52e0e2e4e69cbe61",
+        "5ecc41a7e99f3495",
+        "5fcaf4eccb54522a",
+        "7112465d928b6984",
+        "77ca84362544b5d8",
+        "798ee8303069276d",
+        "7d1ab5b53bbf60fd",
+        "81c083bd432722e5",
+        "8e4bb7900fba4512",
+        "9cb2e545d4219947",
+        "a7761c608e37da08",
+        "b9a2c9e74f2916c1",
+        "c4ea75c17f000ffa",
+        "d328abff79d49ddf",
+        "d61ac54ab24e2ab7",
+        "dc054225bee2ee04",
+        "dd0de661a2eb63ee",
+        "e919af503aefb2d0",
+        "eecfbb0c6c4a4966",
+        "f8d7d67d364f9eef"
+      ],
+      "first_local": "2025-01-01T00:00:00-05:00",
+      "last_local": "2025-12-31T23:00:00-05:00",
+      "locations": [
+        "HUD VL",
+        "ROSETON___1",
+        "ROSETON___2"
+      ]
+    },
+    "lbmp_rt": {
+      "snapshot_id": "1be1e1747ff7b750",
+      "rows": 26280,
+      "raw_source_ids": [
+        "126b127d37da87a8",
+        "208aad77bf98cfce",
+        "221dfe659b3a35a9",
+        "25e38c69ffbc8d28",
+        "3292259b11a62a13",
+        "35b6cbe3da279300",
+        "36f72c912ac262e1",
+        "458f027adf6ccddd",
+        "53e3dde7e2cfce54",
+        "5b14276ab48b6cf4",
+        "6fb0d8d6fcecbcbe",
+        "9380e3f4a488edde",
+        "97b8a75cc6ec08f3",
+        "a0c492ea405efbb6",
+        "a36d89c51ec9e625",
+        "a6415364271e5da9",
+        "a646713d4dbed33d",
+        "aa730af57cdb16ee",
+        "b8210104ff7bd643",
+        "be9daa35ca38249d",
+        "c11ca37a7ddac5de",
+        "e93bb99815ef19bb",
+        "ec8bdddd4e27bd72",
+        "fcfeb75d46e3f44b"
+      ],
+      "first_local": "2025-01-01T00:00:00-05:00",
+      "last_local": "2025-12-31T23:00:00-05:00",
+      "locations": [
+        "HUD VL",
+        "ROSETON___1",
+        "ROSETON___2"
+      ]
+    },
+    "gas_price": {
+      "snapshot_id": "748a340203091709",
+      "rows": 269,
+      "raw_source_ids": [
+        "c8aa4eae3731fe80"
+      ],
+      "first_local": "2024-12-02",
+      "last_local": "2025-12-31"
+    },
+    "eia_plant_reference": {
+      "snapshot_id": "4f8d3b488c04d03e",
+      "rows": 16,
+      "raw_source_ids": [
+        "0aaae04812cd4ab8",
+        "272055f2d748f648"
+      ]
+    }
+  }
+}

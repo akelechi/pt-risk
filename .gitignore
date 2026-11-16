@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# raw downloads are reproducible from data/raw.manifest.json (url + sha256)
+data/raw/*
+!data/raw/.gitkeep
+
+# run store
+runs/
+
+ui/node_modules/
+ui/.next/
+ui/next-env.d.ts
+.DS_Store
