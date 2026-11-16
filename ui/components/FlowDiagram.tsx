@@ -166,8 +166,13 @@ function Arrow({ arrow, hour }: { arrow: FlowArrow; hour: HourView | null }) {
   const supplies = SUPPLY_FUEL[arrow.id];
   const burning = supplies !== undefined && hour?.fuel ? (hour.fuel === supplies ? " burning" : " idle") : "";
   return (
-    <g role="img" aria-label={describeArrow(arrow, hour)} className={`arrow ${arrow.kind}${burning}`}>
+    <g role="img" aria-label={describeArrow(arrow, hour)} className={`arrow ${arrow.kind}${burning}${arrow.note ? " unmodeled" : ""}`}>
       <path d={arrow.path} className="arrow-line" markerEnd={`url(#head-${arrow.kind})`} />
+      {arrow.note && (
+        <text x={arrow.labelX} y={arrow.labelY} textAnchor={arrow.labelAnchor} className="figure figure-note">
+          {arrow.note}
+        </text>
+      )}
       {arrow.figures.map((item, index) => (
         <FigureText
           key={item.label}
@@ -235,6 +240,7 @@ function Stacked({ hour }: { hour: HourView | null }) {
             <span>{title(arrow.to)}</span>
           </div>
           <dl>
+            {arrow.note && <div className="stack-figure stack-note">{arrow.note}</div>}
             {arrow.figures.map((item) => {
               const value = figureValue(item, hour);
               return (

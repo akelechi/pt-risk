@@ -85,8 +85,21 @@ export default async function FlowPage({ searchParams }: { searchParams: Promise
                 </dd>
               </div>
               <div>
-                <dt>Energy margin, run</dt>
-                <dd className="num money-text">{formatNumber(run.energy_margin_usd, "usd")} $</dd>
+                <dt>Energy margin, assumed parameters</dt>
+                <dd>
+                  <span className="num money-text">{formatNumber(run.energy_margin_usd, "usd")} $</span>
+                  <span className="margin-frame">
+                    energy only: before capacity revenue and fixed costs
+                    {params.online && (
+                      <>
+                        {" "}
+                        · <span className="num">{params.data.assumed_parameter_count}</span> of{" "}
+                        <span className="num">{params.data.leaves.length}</span> plant parameters are assumed, not confirmed
+                      </>
+                    )}
+                    {" "}· not an earnings figure
+                  </span>
+                </dd>
               </div>
             </dl>
           ) : (

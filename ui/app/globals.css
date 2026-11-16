@@ -979,3 +979,34 @@ body {
   font-family: var(--font-mono);
   font-size: 11px;
 }
+
+/* ------------------------------------------------- framing and unmodelled arrows */
+
+.margin-frame {
+  display: block;
+  max-width: 46ch;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.arrow.unmodeled .arrow-line {
+  stroke: var(--line-strong);
+  stroke-dasharray: 2 4;
+}
+
+.arrow.unmodeled .arrow-head,
+.arrow.unmodeled path[marker-end] {
+  opacity: 0.6;
+}
+
+.figure-note {
+  fill: var(--text-muted);
+  font-style: italic;
+}
+
+.stack-note {
+  color: var(--text-muted);
+  font-style: italic;
+}

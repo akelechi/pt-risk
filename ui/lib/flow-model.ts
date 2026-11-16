@@ -61,6 +61,8 @@ export type FlowArrow = {
   labelAnchor: "start" | "middle" | "end";
   /** Milestone whose engine first puts a value on this arrow. */
   milestone: number;
+  /** Shown in place of figures on an arrow the engine deliberately does not model. */
+  note?: string;
   /** When given, the arrow is drawn only in hours where this holds (e.g. the hour of a start). */
   when?: (hour: HourView) => boolean;
 };
@@ -153,8 +155,10 @@ export const ARROWS: FlowArrow[] = [
     from: "lse", to: "da_market",
     path: "M140 235 H222",
     kind: "physical",
-    figures: [figure("Load bids", "MW", "physical")],
-    labelX: 185, labelY: 208, labelAnchor: "middle",
+    // The plant is a price-taker against the published LBMP: load bids are never modelled.
+    figures: [],
+    note: "Load bids: not modeled (price-taker)",
+    labelX: 12, labelY: 314, labelAnchor: "start",
     milestone: 1,
   },
   {
@@ -259,5 +263,5 @@ export function describeFigure(item: Figure, hour: HourView | null): string {
 export function describeArrow(arrow: FlowArrow, hour: HourView | null, nodes: FlowNode[] = NODES): string {
   const title = (id: string) => nodes.find((node) => node.id === id)?.title ?? id;
   const values = arrow.figures.map((item) => `${item.label} ${describeFigure(item, hour)}`).join(", ");
-  return `${title(arrow.from)} to ${title(arrow.to)}: ${values}`;
+  return `${title(arrow.from)} to ${title(arrow.to)}: ${arrow.note ?? values}`;
 }
