@@ -99,7 +99,13 @@ first milestone affected. Status: `open` until answered; answers are recorded he
 
 ## Plant parameters
 
-**Q-018 EIA values vs the brief's placeholders** (M1, open).
+**Q-018 EIA values vs the brief's placeholders** (M1, answered 2026-11-15, partly open).
+- Answer applied: `pmax_mw` = EIA net summer capacity (614.8 / 607.7) and `pmin_mw` = 140,
+  status `public`; heat-rate break points moved to 140 and Pmax.
+- Still open: the heat-rate LEVEL. Kept at the brief's values (`assumed`), because the
+  EIA annual average overstates full-load heat rate. Re-levelling to 11.68 lowers the
+  January 2025 margin by $1.82M (see docs/milestones/01.md). Owner to confirm which.
+- Also open: summer (614.8) vs winter (613.2) capacity for winter months.
 - Finding: EIA-860 2024 reports nameplate 621 MW per unit, net summer capacity
   614.8 MW (U1) / 607.7 MW (U2), minimum load 140 MW. EIA-923 2024 implies an annual
   average heat rate of 11.68 MMBtu/MWh (2,763,532 MMBtu / 236,658 MWh). The config holds
@@ -122,15 +128,55 @@ first milestone affected. Status: `open` until answered; answers are recorded he
 
 ## Engine rules (not yet built)
 
-**Q-015 Price-taker rule double-counts VOM** (M1, open). The brief says run if
+**Q-015 Price-taker rule double-counts VOM** (M1, answered 2026-11-15: run if `price > c`). The brief says run if
 `price > c + VOM`, but `c` already includes VOM.
 - Assumption: run if `price > c`.
 - Confirm: owner.
 
-**Q-016 Heat-rate curve interpretation** (M1, open). The example points are non-monotone.
+**Q-016 Heat-rate curve interpretation** (M1, answered 2026-11-15: block-end steps, convexified). The example points are non-monotone.
 - Assumption: each point is the incremental heat rate of the block ending at that output;
   the 150 MW point prices the Pmin block; the curve is convexified in `cost.py`.
 - Confirm: owner.
 
 **Q-017 UI ordering inside a milestone** (M0, resolved by practice).
 - Engine, loaders and API were built and tested first; the UI shell was added last.
+
+## Raised in milestone 1
+
+**Q-023 Gas day** (M1, open).
+- Assumption: the gas day is the local calendar day; every hour of a local day uses that
+  day's price.
+- Confirm: owner; the NAESB gas day runs 9:00 to 9:00 Central, and weekend gas trades as
+  a strip on Friday.
+
+**Q-024 CO2 cost** (M1, open). The marginal-cost formula has a CO2 term, but no milestone
+loads an RGGI price table.
+- Assumption: CO2 price is zero; no `emissions_cost` is booked and offers exclude it.
+- Proposal: load RGGI auction clearing prices with milestone 5 or 6.
+- Confirm: owner.
+
+**Q-025 Deterministic availability** (M1, open).
+- Assumption: available MW = Pmax x (1 - EFOR) in every hour (553.32 MW for U1); the
+  offer curve is truncated there. Removing the derate adds $3.2M to January.
+- Confirm: owner; alternative is full Pmax until outages are drawn in milestone 3.
+
+**Q-026 Initial state** (M1, open).
+- Assumption: each unit starts the run off, 168 hours offline (cold); set per scenario.
+  No effect until start costs exist (milestone 2).
+- Confirm: owner.
+
+**Q-027 Offer price tick** (M1, open).
+- Assumption: offer step prices are rounded to $0.01/MWh, so a tie with the LBMP is well
+  defined and does not depend on floating-point noise.
+- Confirm: NYISO bid rules.
+
+**Q-028 Fuel price before milestone 5** (M1, open).
+- Assumption: delivered gas = Henry Hub flat while module `gas_basis` is off; the config's
+  assumed monthly basis adder is NOT applied yet.
+- Consequence: the January margin is far above anything plausible (see milestone note).
+- Confirm: owner; alternative is to apply the assumed adder from milestone 1.
+
+**Q-029 Run result size** (M1, open).
+- Assumption: a stored run keeps states, decisions, hourly inputs and offers as JSON.
+  One unit-month is about 1.5 MB; a two-unit year would be roughly 35 MB.
+- Confirm: owner; alternative is parquet per run before longer runs are stored.

@@ -33,7 +33,7 @@ export interface paths {
         };
         /**
          * List Runs
-         * @description Ids of stored runs, sorted.
+         * @description Stored runs, sorted by run id.
          */
         get: operations["list_runs_runs_get"];
         put?: never;
@@ -60,6 +60,48 @@ export interface paths {
          * @description Run metadata: config hash, seed, data snapshot ids, code version, invariant results.
          */
         get: operations["get_run_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/flow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Flow
+         * @description Flow-diagram payloads for every hour of one unit, optionally one local month (YYYY-MM).
+         */
+        get: operations["get_flow_runs__run_id__flow_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/runs/{run_id}/hour/{ts}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Hour
+         * @description Flow-diagram payload for one hour: every arrow's value plus the rows behind it.
+         *
+         *     `ts` is an ISO timestamp with a UTC offset, e.g. 2025-01-15T17:00:00Z.
+         */
+        get: operations["get_hour_runs__run_id__hour__ts__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -112,10 +154,92 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * Decision
+         * @description What the commitment solver decided for one unit and hour.
+         */
+        Decision: {
+            /** Commit */
+            commit: boolean;
+            /**
+             * Fuel
+             * @enum {string}
+             */
+            fuel: "gas" | "oil";
+            /** Reason */
+            reason: string;
+            /** Target Mw */
+            target_mw: number;
+            /**
+             * Ts Local
+             * Format: date-time
+             */
+            ts_local: string;
+            /**
+             * Ts Utc
+             * Format: date-time
+             */
+            ts_utc: string;
+            /** Unit Id */
+            unit_id: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HourFlow
+         * @description The flow-diagram payload for one unit and hour: every arrow's value, the ledger
+         *     entries booked in the hour, and the input rows behind them (`ref`).
+         */
+        HourFlow: {
+            /** Da Energy Rev Usd */
+            da_energy_rev_usd: number;
+            /** Da Lbmp Usd Per Mwh */
+            da_lbmp_usd_per_mwh: number;
+            /** Da Schedule Mw */
+            da_schedule_mw: number;
+            decision: components["schemas"]["Decision"];
+            /** Entries */
+            entries: components["schemas"]["LedgerEntry"][];
+            /** Fuel Cost Usd */
+            fuel_cost_usd: number;
+            /** Gas Burn Mmbtu */
+            gas_burn_mmbtu: number;
+            /** Gas Price Usd Per Mmbtu */
+            gas_price_usd_per_mmbtu: number;
+            /** Hour Energy Margin Usd */
+            hour_energy_margin_usd: number;
+            /** Input Refs */
+            input_refs: {
+                [key: string]: string;
+            };
+            /** Offer Blocks */
+            offer_blocks: components["schemas"]["OfferBlock"][];
+            /** Offer Max Price Usd Per Mwh */
+            offer_max_price_usd_per_mwh: number | null;
+            /** Offer Min Price Usd Per Mwh */
+            offer_min_price_usd_per_mwh: number | null;
+            /** Offered Mw */
+            offered_mw: number;
+            /** Output Mw */
+            output_mw: number;
+            state: components["schemas"]["PlantState"];
+            /**
+             * Ts Local
+             * Format: date-time
+             */
+            ts_local: string;
+            /**
+             * Ts Utc
+             * Format: date-time
+             */
+            ts_utc: string;
+            /** Unit Id */
+            unit_id: string;
+            /** Vom Usd */
+            vom_usd: number;
         };
         /**
          * InvariantResult
@@ -255,6 +379,20 @@ export interface components {
             simulation: boolean;
         };
         /**
+         * OfferBlock
+         * @description One step of the convexified offer curve: MW range and its offer price.
+         */
+        OfferBlock: {
+            /** Incremental Heat Rate Mmbtu Per Mwh */
+            incremental_heat_rate_mmbtu_per_mwh: number;
+            /** Mw From */
+            mw_from: number;
+            /** Mw To */
+            mw_to: number;
+            /** Price Usd Per Mwh */
+            price_usd_per_mwh: number;
+        };
+        /**
          * ParamLeafView
          * @description A flattened plant-parameter leaf, for the Parameters screen and the assumed count.
          */
@@ -356,6 +494,8 @@ export interface components {
             data_snapshot_ids: {
                 [key: string]: string;
             };
+            /** Energy Margin Usd */
+            energy_margin_usd: number;
             /** Inputs */
             inputs: components["schemas"]["TableSummary"][];
             /** Invariants */
@@ -364,11 +504,41 @@ export interface components {
             ledger_entry_count: number;
             /** Ledger Hash */
             ledger_hash: string;
+            /** Ledger Totals Usd */
+            ledger_totals_usd: {
+                [key: string]: number;
+            };
             /** Run Id */
             run_id: string;
             scenario: components["schemas"]["Scenario"];
             /** Seed */
             seed: number;
+        };
+        /**
+         * RunSummary
+         * @description One stored run, for pickers. Response item of GET /runs.
+         */
+        RunSummary: {
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /** Energy Margin Usd */
+            energy_margin_usd: number;
+            /** Ledger Entry Count */
+            ledger_entry_count: number;
+            /** Run Id */
+            run_id: string;
+            /** Scenario Name */
+            scenario_name: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /** Unit Ids */
+            unit_ids: string[];
         };
         /**
          * Scenario
@@ -380,6 +550,8 @@ export interface components {
              * Format: date
              */
             end_date: string;
+            /** Initial Hours Offline H */
+            initial_hours_offline_h: number;
             /** Market Config */
             market_config: string;
             /**
@@ -485,7 +657,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string[];
+                    "application/json": components["schemas"]["RunSummary"][];
                 };
             };
         };
@@ -541,6 +713,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunMeta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_flow_runs__run_id__flow_get: {
+        parameters: {
+            query?: {
+                unit_id?: string | null;
+                month?: string | null;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HourFlow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_hour_runs__run_id__hour__ts__get: {
+        parameters: {
+            query?: {
+                unit_id?: string | null;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+                ts: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HourFlow"];
                 };
             };
             /** @description Validation Error */

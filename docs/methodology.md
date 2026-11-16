@@ -87,11 +87,59 @@ The configured plant code is verified against the EIA plant name at build time.
 
 ## 7. Invariants
 
-Implemented: 6 (time integrity, including exact coverage of the scenario window for every
+Milestone 0: 6 (time integrity, including exact coverage of the scenario window for every
 location), 7 (provenance), 8 (reproducibility). Invariants 1-5 report `not_applicable`
 until their milestone; they never report `pass` for something that was not checked.
 
-## 8. Not yet written (rules land here before their milestone's numbers)
+## 8. Cost model (milestone 1)
 
-Marginal cost and offer curve (M1), commitment (M2), RT settlement and outages (M3), dual
-fuel (M4), delivered gas (M5), capacity (M6), hedges (M7), simulation (M8), attribution (M9).
+* **Heat-rate curve.** Each configured point is the incremental heat rate of the block
+  ending at that output; the first block runs from 0 MW to Pmin (Q-016). Fuel burned at a
+  steady output is that curve integrated from 0 MW. No-load and start fuel are not yet
+  included (milestone 2).
+* **Offer curve.** The physical blocks are truncated at available MW and convexified:
+  adjacent blocks whose heat rate would fall are pooled at their MW-weighted average, so
+  offer steps are non-decreasing. At every step boundary the pooled curve implies exactly
+  the physical fuel.
+* **Step price** = pooled incremental heat rate x fuel price + VOM, rounded to the cent
+  (Q-027). CO2 cost is zero until an RGGI price table is loaded (Q-024).
+* **Fuel price** = Henry Hub flat while module `gas_basis` is off (Q-028). The gas day is
+  the local calendar day (Q-023); a day with no published price uses the last published
+  price on or before it, at most 7 days old (Q-012).
+* **Availability** = Pmax x (1 - EFOR) in every hour (Q-025), until seeded outages in
+  milestone 3.
+
+## 9. Commitment (milestone 1)
+
+* `price_taker`, the baseline kept forever: each hour stands alone; an offer step runs
+  when the DA LBMP is **strictly above** its price (Q-015). No start cost, no minimum run
+  or down time, no memory of state.
+* One offer per unit and local day; one decision per real hour (23, 24 or 25).
+
+## 10. Settlement (milestone 1: DA only)
+
+* Actual output = DA schedule = the solver's target. `da_energy_rev = da_mw x 1 h x
+  da_lbmp` at the unit's own bus (Q-005).
+* Booked per running hour: `da_energy_rev` (+), `fuel_cost_gas` (-, MMBtu x gas price),
+  `vom` (-, MWh x VOM). Nothing is booked in an idle hour.
+* **Energy margin** = `da_energy_rev + rt_balancing + fuel_cost_* + start_cost +
+  no_load_cost + vom + emissions_cost` (costs are negative entries).
+
+## 11. State (milestone 1)
+
+* Each unit starts the run off, having been offline `initial_hours_offline_h` (Q-026).
+* `hours_in_state_h` counts hours on or hours off; `thermal_state` is hot while running
+  and follows the start thresholds by hours offline otherwise. It has no cost effect yet.
+* `transition(state, decision, inputs, unit)` is the only function that produces a state
+  or a ledger entry.
+
+## 12. Invariants implemented
+
+3 (cost identity) and 4 (revenue identity) are recomputed from states and input prices,
+not from the ledger entries' own quantity and price, and compared per unit-hour to the
+cent. 6, 7, 8 as before; 8 now covers a non-empty ledger. 1, 2, 5 report `not_applicable`.
+
+## 13. Not yet written (rules land here before their milestone's numbers)
+
+Start cost, no-load and DP commitment (M2), RT settlement and outages (M3), dual fuel
+(M4), delivered gas (M5), capacity (M6), hedges (M7), simulation (M8), attribution (M9).

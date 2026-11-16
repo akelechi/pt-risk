@@ -374,3 +374,210 @@ body {
     transition: none !important;
   }
 }
+
+/* ------------------------------------------------- milestone 1: live hour */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.money-text {
+  color: var(--money);
+}
+
+.run-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 10px 0 14px;
+}
+
+.run-strip dt {
+  color: var(--muted);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.run-strip dd {
+  margin: 1px 0 0;
+  font-size: 13px;
+}
+
+.pick {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 7px;
+  border: 1px solid var(--rule-strong);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.pick.current {
+  border-color: var(--text);
+  font-weight: 600;
+}
+
+.checks {
+  display: flex;
+  gap: 5px;
+}
+
+/* pass = tick in a solid box; not applicable = dot in a dashed box; fail = cross in a heavy box */
+.check {
+  display: inline-flex;
+  gap: 3px;
+  padding: 0 5px;
+  border: 1px solid var(--rule-strong);
+  font-size: 12px;
+}
+
+.check.pass {
+  border-color: var(--physical);
+  color: var(--physical);
+}
+
+.check.not_applicable {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.check.fail {
+  border-width: 2px;
+  border-color: var(--money);
+  color: var(--money);
+  font-weight: 600;
+}
+
+/* plant lit when running: heavier teal frame and filled state shapes */
+.node-plant.on .node-box {
+  stroke: var(--physical);
+  stroke-width: 2.5;
+}
+
+.node-plant.on .node-icon {
+  color: var(--physical);
+}
+
+.state.active > rect,
+.state.active > path,
+.state.active > circle {
+  fill: var(--text);
+  stroke: var(--text);
+}
+
+.node-plant.on .state.active > rect {
+  fill: var(--physical);
+  stroke: var(--physical);
+}
+
+.state.active .state-name {
+  fill: var(--text);
+  font-weight: 600;
+}
+
+.decision {
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--rule);
+  border-top: 0;
+  background: var(--panel);
+  font-size: 12.5px;
+}
+
+.decision-label {
+  margin-right: 8px;
+  color: var(--muted);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.scrubber {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 10px 12px 8px;
+  border: 1px solid var(--rule);
+  border-top: 0;
+  background: var(--panel);
+}
+
+.scrubber-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.scrubber button {
+  min-width: 34px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--rule-strong);
+  background: var(--ground);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.scrubber button.play {
+  min-width: 64px;
+}
+
+.scrubber button[aria-pressed="true"] {
+  border-color: var(--text);
+}
+
+.scrubber button:disabled {
+  color: var(--muted);
+  cursor: default;
+  border-style: dashed;
+}
+
+.scrubber-range {
+  flex: 1 1 320px;
+  min-width: 200px;
+  accent-color: var(--physical);
+}
+
+.scrubber-time {
+  min-width: 25ch;
+  font-size: 12.5px;
+}
+
+.scrubber-count {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.strip {
+  display: block;
+  width: 100%;
+  height: 14px;
+  border: 1px solid var(--rule);
+  border-top: 0;
+  background: var(--ground);
+}
+
+.strip-on {
+  fill: var(--physical);
+  opacity: 0.55;
+}
+
+.strip-cursor {
+  fill: var(--text);
+}
+
+.stack-plant {
+  border-left: 3px double var(--rule-strong);
+}
+
+.stack-plant.on {
+  border-left: 3px solid var(--physical);
+}

@@ -1,6 +1,59 @@
 {
   "components": {
     "schemas": {
+      "Decision": {
+        "additionalProperties": false,
+        "description": "What the commitment solver decided for one unit and hour.",
+        "properties": {
+          "commit": {
+            "title": "Commit",
+            "type": "boolean"
+          },
+          "fuel": {
+            "enum": [
+              "gas",
+              "oil"
+            ],
+            "title": "Fuel",
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "target_mw": {
+            "minimum": 0.0,
+            "title": "Target Mw",
+            "type": "number"
+          },
+          "ts_local": {
+            "format": "date-time",
+            "title": "Ts Local",
+            "type": "string"
+          },
+          "ts_utc": {
+            "format": "date-time",
+            "title": "Ts Utc",
+            "type": "string"
+          },
+          "unit_id": {
+            "title": "Unit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ts_utc",
+          "ts_local",
+          "unit_id",
+          "commit",
+          "target_mw",
+          "fuel",
+          "reason"
+        ],
+        "title": "Decision",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -12,6 +65,138 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HourFlow": {
+        "description": "The flow-diagram payload for one unit and hour: every arrow's value, the ledger\nentries booked in the hour, and the input rows behind them (`ref`).",
+        "properties": {
+          "da_energy_rev_usd": {
+            "title": "Da Energy Rev Usd",
+            "type": "number"
+          },
+          "da_lbmp_usd_per_mwh": {
+            "title": "Da Lbmp Usd Per Mwh",
+            "type": "number"
+          },
+          "da_schedule_mw": {
+            "title": "Da Schedule Mw",
+            "type": "number"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/Decision"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/LedgerEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "fuel_cost_usd": {
+            "title": "Fuel Cost Usd",
+            "type": "number"
+          },
+          "gas_burn_mmbtu": {
+            "title": "Gas Burn Mmbtu",
+            "type": "number"
+          },
+          "gas_price_usd_per_mmbtu": {
+            "title": "Gas Price Usd Per Mmbtu",
+            "type": "number"
+          },
+          "hour_energy_margin_usd": {
+            "title": "Hour Energy Margin Usd",
+            "type": "number"
+          },
+          "input_refs": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Input Refs",
+            "type": "object"
+          },
+          "offer_blocks": {
+            "items": {
+              "$ref": "#/components/schemas/OfferBlock"
+            },
+            "title": "Offer Blocks",
+            "type": "array"
+          },
+          "offer_max_price_usd_per_mwh": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Max Price Usd Per Mwh"
+          },
+          "offer_min_price_usd_per_mwh": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Min Price Usd Per Mwh"
+          },
+          "offered_mw": {
+            "title": "Offered Mw",
+            "type": "number"
+          },
+          "output_mw": {
+            "title": "Output Mw",
+            "type": "number"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PlantState"
+          },
+          "ts_local": {
+            "format": "date-time",
+            "title": "Ts Local",
+            "type": "string"
+          },
+          "ts_utc": {
+            "format": "date-time",
+            "title": "Ts Utc",
+            "type": "string"
+          },
+          "unit_id": {
+            "title": "Unit Id",
+            "type": "string"
+          },
+          "vom_usd": {
+            "title": "Vom Usd",
+            "type": "number"
+          }
+        },
+        "required": [
+          "ts_utc",
+          "ts_local",
+          "unit_id",
+          "state",
+          "decision",
+          "da_lbmp_usd_per_mwh",
+          "offered_mw",
+          "offer_min_price_usd_per_mwh",
+          "offer_max_price_usd_per_mwh",
+          "offer_blocks",
+          "da_schedule_mw",
+          "output_mw",
+          "gas_price_usd_per_mmbtu",
+          "gas_burn_mmbtu",
+          "da_energy_rev_usd",
+          "fuel_cost_usd",
+          "vom_usd",
+          "hour_energy_margin_usd",
+          "entries",
+          "input_refs"
+        ],
+        "title": "HourFlow",
         "type": "object"
       },
       "InvariantResult": {
@@ -285,6 +470,39 @@
         "title": "Modules",
         "type": "object"
       },
+      "OfferBlock": {
+        "additionalProperties": false,
+        "description": "One step of the convexified offer curve: MW range and its offer price.",
+        "properties": {
+          "incremental_heat_rate_mmbtu_per_mwh": {
+            "exclusiveMinimum": 0.0,
+            "title": "Incremental Heat Rate Mmbtu Per Mwh",
+            "type": "number"
+          },
+          "mw_from": {
+            "minimum": 0.0,
+            "title": "Mw From",
+            "type": "number"
+          },
+          "mw_to": {
+            "exclusiveMinimum": 0.0,
+            "title": "Mw To",
+            "type": "number"
+          },
+          "price_usd_per_mwh": {
+            "title": "Price Usd Per Mwh",
+            "type": "number"
+          }
+        },
+        "required": [
+          "mw_from",
+          "mw_to",
+          "incremental_heat_rate_mmbtu_per_mwh",
+          "price_usd_per_mwh"
+        ],
+        "title": "OfferBlock",
+        "type": "object"
+      },
       "ParamLeafView": {
         "description": "A flattened plant-parameter leaf, for the Parameters screen and the assumed count.",
         "properties": {
@@ -494,6 +712,10 @@
             "title": "Data Snapshot Ids",
             "type": "object"
           },
+          "energy_margin_usd": {
+            "title": "Energy Margin Usd",
+            "type": "number"
+          },
           "inputs": {
             "items": {
               "$ref": "#/components/schemas/TableSummary"
@@ -515,6 +737,13 @@
           "ledger_hash": {
             "title": "Ledger Hash",
             "type": "string"
+          },
+          "ledger_totals_usd": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Ledger Totals Usd",
+            "type": "object"
           },
           "run_id": {
             "title": "Run Id",
@@ -539,9 +768,60 @@
           "ledger_entry_count",
           "inputs",
           "invariants",
-          "assumed_parameter_count"
+          "assumed_parameter_count",
+          "ledger_totals_usd",
+          "energy_margin_usd"
         ],
         "title": "RunMeta",
+        "type": "object"
+      },
+      "RunSummary": {
+        "description": "One stored run, for pickers. Response item of GET /runs.",
+        "properties": {
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "energy_margin_usd": {
+            "title": "Energy Margin Usd",
+            "type": "number"
+          },
+          "ledger_entry_count": {
+            "title": "Ledger Entry Count",
+            "type": "integer"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "scenario_name": {
+            "title": "Scenario Name",
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "unit_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unit Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "run_id",
+          "scenario_name",
+          "start_date",
+          "end_date",
+          "unit_ids",
+          "ledger_entry_count",
+          "energy_margin_usd"
+        ],
+        "title": "RunSummary",
         "type": "object"
       },
       "Scenario": {
@@ -552,6 +832,11 @@
             "format": "date",
             "title": "End Date",
             "type": "string"
+          },
+          "initial_hours_offline_h": {
+            "minimum": 0.0,
+            "title": "Initial Hours Offline H",
+            "type": "integer"
           },
           "market_config": {
             "title": "Market Config",
@@ -605,6 +890,7 @@
           "plant_config",
           "market_config",
           "unit_ids",
+          "initial_hours_offline_h",
           "seed"
         ],
         "title": "Scenario",
@@ -735,7 +1021,7 @@
     },
     "/runs": {
       "get": {
-        "description": "Ids of stored runs, sorted.",
+        "description": "Stored runs, sorted by run id.",
         "operationId": "list_runs_runs_get",
         "responses": {
           "200": {
@@ -743,7 +1029,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "type": "string"
+                    "$ref": "#/components/schemas/RunSummary"
                   },
                   "title": "Response List Runs Runs Get",
                   "type": "array"
@@ -831,6 +1117,147 @@
           }
         },
         "summary": "Get Run"
+      }
+    },
+    "/runs/{run_id}/flow": {
+      "get": {
+        "description": "Flow-diagram payloads for every hour of one unit, optionally one local month (YYYY-MM).",
+        "operationId": "get_flow_runs__run_id__flow_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "unit_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unit Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HourFlow"
+                  },
+                  "title": "Response Get Flow Runs  Run Id  Flow Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Flow"
+      }
+    },
+    "/runs/{run_id}/hour/{ts}": {
+      "get": {
+        "description": "Flow-diagram payload for one hour: every arrow's value plus the rows behind it.\n\n`ts` is an ISO timestamp with a UTC offset, e.g. 2025-01-15T17:00:00Z.",
+        "operationId": "get_hour_runs__run_id__hour__ts__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ts",
+            "required": true,
+            "schema": {
+              "title": "Ts",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "unit_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unit Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HourFlow"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Hour"
       }
     },
     "/runs/{run_id}/ledger": {
