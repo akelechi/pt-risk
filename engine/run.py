@@ -6,8 +6,9 @@ code always has the same id. Time comes from the scenario; the wall clock is nev
 
 Modules implemented: `dispatch` (milestone 1: price-taker, gas only, DA only) and
 `dp_commitment` (milestone 2: DP commitment with start cost, no-load and run-time limits,
-plus the price-taker baselines it is compared with). A scenario that switches on any
-other module is refused. With `dispatch` off the run only loads and verifies its inputs.
+plus the price-taker baselines it is compared with), `rt_settlement` and `outages`
+(milestone 3: seeded daily forced outages, deviations settled at the RT LBMP). A scenario
+that switches on any other module is refused. With `dispatch` off the run only loads and verifies its inputs.
 """
 
 from __future__ import annotations
@@ -44,13 +45,14 @@ from engine.market.prices import GasPrices, delivered_gas_price_usd_per_mmbtu, l
 from engine.plant import commitment, cost
 from engine.plant.params import Plant, flatten_leaves, parse_plant, status_counts
 from engine.plant.state import initial_state, transition
+from engine.simulate.outages import forced_outage
 from engine.version import code_version
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 HOURLY_TABLES = ("lbmp_da", "lbmp_rt")
 DAILY_TABLES = ("gas_price",)
 RUN_ID_LENGTH = 12
-IMPLEMENTED_MODULES = {"dispatch", "dp_commitment"}
+IMPLEMENTED_MODULES = {"dispatch", "dp_commitment", "rt_settlement", "outages"}
 # Index the assumed basis adder is added to. Module gas_basis (milestone 5) replaces the
 # adder with a published delivered index.
 BASE_GAS_POINT = "HENRY"
@@ -150,8 +152,11 @@ def _execute(
     not_implemented = sorted(switched_on - IMPLEMENTED_MODULES)
     if not_implemented:
         raise NotImplementedError(f"modules not implemented yet: {not_implemented}")
-    if "dp_commitment" in switched_on and "dispatch" not in switched_on:
-        raise ValueError("module dp_commitment needs module dispatch")
+    for module in ("dp_commitment", "rt_settlement", "outages"):
+        if module in switched_on and "dispatch" not in switched_on:
+            raise ValueError(f"module {module} needs module dispatch")
+    if "outages" in switched_on and "rt_settlement" not in switched_on:
+        raise ValueError("module outages needs module rt_settlement: an outage is a deviation to settle")
     execution = Execution()
     if "dispatch" not in switched_on:
         return execution
@@ -162,6 +167,9 @@ def _execute(
     basis_adder_by_month = plant.fuel.gas_basis_adder_usd_per_mmbtu_by_month.value
     ptid_of_unit = {item["unit_id"]: item["ptid"] for item in market_raw["locations"] if item.get("unit_id")}
     lbmp_da = inputs["lbmp_da"]
+    settle_rt = "rt_settlement" in switched_on
+    draw_outages = "outages" in switched_on
+    unit_position = {unit.id: position for position, unit in enumerate(plant.units)}
 
     for unit_id in scenario.unit_ids:
         unit = plant.unit(unit_id)
@@ -171,9 +179,20 @@ def _execute(
         days = _day_prices(unit_id, unit_rows)
         if not days:
             raise ValueError(f"no DA LBMP rows for unit {unit_id} in the scenario window")
-        available_mw = cost.deterministic_available_mw(unit)
+        # What the plant plans and offers with. Outages, when drawn, are not known day-ahead.
+        available_mw = cost.planned_available_mw(unit, full=draw_outages or scenario.availability == "full")
         first_hour = days[0].hours[0]
-        state = initial_state(unit, first_hour.ts_utc, first_hour.ts_local, scenario.initial_hours_offline_h)
+        state = initial_state(
+            unit, first_hour.ts_utc, first_hour.ts_local, scenario.initial_hours_offline_h, available_mw
+        )
+        rt_of_hour: dict = {}
+        if settle_rt:
+            lbmp_rt = inputs["lbmp_rt"]
+            for row in lbmp_rt[lbmp_rt["location_ptid"] == ptid_of_unit[unit_id]].itertuples(index=False):
+                rt_of_hour[row.ts_utc.to_pydatetime()] = (
+                    float(row.lbmp_usd_per_mwh),
+                    lbmp_row_ref(row.source_id, int(row.location_ptid), row.ts_utc),
+                )
 
         gas_of_day = []
         offers = []
@@ -194,7 +213,13 @@ def _execute(
             if solver == "dp":
                 execution.commitment_bounds.append(commitment.margin_bound(unit, horizon, state))
             execution.offers.append(offers[index])
+            on_outage = draw_outages and forced_outage(
+                scenario.seed, unit_position[unit_id], day.local_date, unit.efor.value
+            )
             for hour, decision in zip(day.hours, decisions, strict=True):
+                if settle_rt and hour.ts_utc not in rt_of_hour:
+                    raise ValueError(f"no RT LBMP for unit {unit_id} at {hour.ts_utc}")
+                rt_lbmp, rt_ref = rt_of_hour.get(hour.ts_utc, (None, None))
                 hour_inputs = HourInputs(
                     ts_utc=hour.ts_utc,
                     ts_local=hour.ts_local,
@@ -205,7 +230,10 @@ def _execute(
                     gas_index_price_usd_per_mmbtu=gas_index_price,
                     gas_basis_adder_usd_per_mmbtu=gas_basis_adder,
                     gas_price_ref=gas_ref,
-                    available_mw=available_mw,
+                    available_mw=0.0 if on_outage else available_mw,
+                    rt_lbmp_usd_per_mwh=rt_lbmp,
+                    rt_lbmp_ref=rt_ref,
+                    forced_outage=on_outage,
                 )
                 state, entries = transition(state, decision, hour_inputs, unit, commitment_costs=commitment_costs)
                 execution.ledger.append(entries)
@@ -296,7 +324,9 @@ def run(scenario: Scenario, root: Path = REPO_ROOT) -> RunResult:
         else {}
     )
     invariants = [
-        reconcile.pending(1),
+        reconcile.check_energy_balance(execution.states, entries, execution.hour_inputs)
+        if scenario.modules.rt_settlement
+        else reconcile.module_off(1, "rt_settlement"),
         reconcile.pending(2),
         reconcile.check_cost_identity(
             execution.states, entries, execution.hour_inputs, units, commitment_costs, scenario.initial_hours_offline_h

@@ -57,7 +57,7 @@ def test_unknown_run_and_bad_scenarios(client: TestClient, scenario_body: dict):
     assert client.get("/runs/..%2F..%2Fconfig").status_code == 404
     assert client.post("/runs", json={**scenario_body, "end_date": "2024-01-01"}).status_code == 422
     assert client.post("/runs", json={**scenario_body, "unit_ids": ["U9"]}).status_code == 422
-    modules = {**scenario_body["modules"], "rt_settlement": True}
+    modules = {**scenario_body["modules"], "dual_fuel": True}
     assert client.post("/runs", json={**scenario_body, "modules": modules}).status_code == 501
 
 

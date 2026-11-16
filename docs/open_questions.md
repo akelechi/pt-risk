@@ -216,3 +216,29 @@ to Pmax is 475 MW.
 line; §4 gives no rule.
 - Assumption: not modelled.
 - Confirm: owner.
+
+## Raised in milestone 3
+
+**Q-035 Outage model** (M3, open).
+- Assumption: one draw per unit and local day, probability = EFOR (0.10, `assumed`); an
+  outage takes the whole day; days are independent (no multi-day repair, no partial
+  derate); the outage is not known when the day-ahead plan is made.
+- Consequence: with independent days, the expected unavailability equals EFOR, but
+  outages are shorter and more frequent than a real unit's.
+- Confirm: owner; NERC GADS statistics for the unit class would give duration.
+
+**Q-036 The plant never deviates by choice** (M3, open). The brief lists "RT deviation" as
+a decision; no milestone builds it.
+- Assumption: actual output = DA schedule except on a forced outage. No running above the
+  schedule when RT is high, no RT-only commitment.
+- Confirm: owner.
+
+**Q-037 Uplift for a block ended by an outage** (M3, open).
+- Assumption: not made whole. A make-whole payment covers scheduled running, not the
+  unit's own failure.
+- Confirm: NYISO BPCG rules.
+
+**Q-038 Planned capacity once outages are drawn** (M3, open).
+- Assumption: Pmax, not Pmax x (1 - EFOR); applying both would count unavailability twice.
+- Consequence: a no-outage month is $1.97M better than the derated milestone 2 month.
+- Confirm: owner.

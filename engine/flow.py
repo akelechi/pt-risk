@@ -69,6 +69,10 @@ def hour_flows(result: RunResult, unit_id: str | None = None, month: str | None 
                 start_and_no_load_cost_usd=_sum_usd(entries, ("start_cost", "no_load_cost")),
                 uplift_usd=_sum_usd(entries, ("uplift",)),
                 started=started,
+                rt_lbmp_usd_per_mwh=inputs.rt_lbmp_usd_per_mwh,
+                deviation_mw=None if inputs.rt_lbmp_usd_per_mwh is None else state.output_mw - state.da_schedule_mw,
+                rt_balancing_usd=None if inputs.rt_lbmp_usd_per_mwh is None else _sum_usd(entries, ("rt_balancing",)),
+                forced_outage=inputs.forced_outage,
                 comparison_output_mw={name: series[position] for name, series in result.comparison_output_mw.items()},
                 hour_energy_margin_usd=_sum_usd(entries, ENERGY_MARGIN_LINES),
                 entries=entries,
@@ -76,6 +80,7 @@ def hour_flows(result: RunResult, unit_id: str | None = None, month: str | None 
                     "lbmp_da": inputs.da_lbmp_ref,
                     "gas_price": inputs.gas_price_ref,
                     "gas_basis": GAS_BASIS_PARAM,
+                    **({"lbmp_rt": inputs.rt_lbmp_ref} if inputs.rt_lbmp_ref else {}),
                 },
             )
         )

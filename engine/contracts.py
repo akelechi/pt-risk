@@ -165,7 +165,7 @@ class PlantState(Stamped):
     model_config = ConfigDict(extra="forbid")
 
     unit_id: str
-    committed: bool
+    committed: bool  # physically on line (a unit on forced outage is off, whatever its DA schedule)
     hours_in_state_h: int = Field(ge=0)  # on-hours if committed, off-hours if not
     thermal_state: ThermalState  # derived from hours offline
     output_mw: float = Field(ge=0)
@@ -283,7 +283,10 @@ class HourInputs(Stamped):
     gas_index_price_usd_per_mmbtu: float  # published index price (Henry Hub)
     gas_basis_adder_usd_per_mmbtu: float  # assumed monthly adder from the plant config (Q-028)
     gas_price_ref: str
-    available_mw: float = Field(ge=0)
+    available_mw: float = Field(ge=0)  # realised in the hour: 0 on a forced outage
+    rt_lbmp_usd_per_mwh: float | None = None  # None when RT is not settled (module off)
+    rt_lbmp_ref: str | None = None
+    forced_outage: bool = False
 
     @model_validator(mode="after")
     def _delivered_is_index_plus_basis(self) -> "HourInputs":
@@ -393,6 +396,9 @@ class Scenario(BaseModel):
     market_config: str
     unit_ids: list[str] = Field(min_length=1)
     initial_hours_offline_h: int = Field(ge=0)  # each unit starts the run off, this long
+    # Capacity the plant plans with when outages are not drawn: "derated" = Pmax x (1 - EFOR),
+    # "full" = Pmax. With module `outages` on it is always Pmax, and outage days are drawn.
+    availability: Literal["derated", "full"] = "derated"
     modules: Modules = Modules()
     seed: int
 
@@ -523,6 +529,10 @@ class HourFlow(Stamped):
     start_and_no_load_cost_usd: float  # negative: the two above together
     uplift_usd: float  # make-whole booked in this hour (the hour after a commitment block ends)
     started: bool  # the unit came on line in this hour
+    rt_lbmp_usd_per_mwh: float | None  # None when RT is not settled in this run
+    deviation_mw: float | None  # actual output less DA schedule; None when RT is not settled
+    rt_balancing_usd: float | None  # signed: negative when the plant buys back its schedule; None when RT is not settled
+    forced_outage: bool
     comparison_output_mw: dict[str, float]  # output this hour under each comparison solver
     hour_energy_margin_usd: float
     entries: list[LedgerEntry]

@@ -205,8 +205,12 @@ export interface components {
             /** Da Schedule Mw */
             da_schedule_mw: number;
             decision: components["schemas"]["Decision"];
+            /** Deviation Mw */
+            deviation_mw: number | null;
             /** Entries */
             entries: components["schemas"]["LedgerEntry"][];
+            /** Forced Outage */
+            forced_outage: boolean;
             /** Fuel Cost Usd */
             fuel_cost_usd: number;
             /** Gas Basis Adder Usd Per Mmbtu */
@@ -235,6 +239,10 @@ export interface components {
             offered_mw: number;
             /** Output Mw */
             output_mw: number;
+            /** Rt Balancing Usd */
+            rt_balancing_usd: number | null;
+            /** Rt Lbmp Usd Per Mwh */
+            rt_lbmp_usd_per_mwh: number | null;
             /** Start And No Load Cost Usd */
             start_and_no_load_cost_usd: number;
             /** Start Cost Usd */
@@ -583,6 +591,12 @@ export interface components {
          * @description Everything that defines a run. Time comes from here, never from the wall clock.
          */
         Scenario: {
+            /**
+             * Availability
+             * @default derated
+             * @enum {string}
+             */
+            availability: "derated" | "full";
             /**
              * End Date
              * Format: date

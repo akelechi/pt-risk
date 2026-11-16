@@ -133,8 +133,12 @@ def day_prices(unit_id: str, lbmps: list[float], local_date: date = HAND_DAY) ->
 
 
 def hour_inputs_for(hour: HourPrice, unit_id: str, available_mw: float,
-                    gas_usd_per_mmbtu: float = HAND_GAS_USD_PER_MMBTU) -> HourInputs:
+                    gas_usd_per_mmbtu: float = HAND_GAS_USD_PER_MMBTU,
+                    rt_lbmp_usd_per_mwh: float | None = None, forced_outage: bool = False) -> HourInputs:
     return HourInputs(
+        rt_lbmp_usd_per_mwh=rt_lbmp_usd_per_mwh,
+        rt_lbmp_ref=None if rt_lbmp_usd_per_mwh is None else "hand:rt",
+        forced_outage=forced_outage,
         ts_utc=hour.ts_utc, ts_local=hour.ts_local, unit_id=unit_id,
         da_lbmp_usd_per_mwh=hour.da_lbmp_usd_per_mwh, da_lbmp_ref=hour.da_lbmp_ref,
         gas_price_usd_per_mmbtu=gas_usd_per_mmbtu, gas_index_price_usd_per_mmbtu=gas_usd_per_mmbtu,
@@ -165,16 +169,24 @@ def toy_offer_for(unit: UnitParams, local_date: date = HAND_DAY, available_mw: f
 
 
 def run_day(unit: UnitParams, lbmps: list[float], solver: str, hours_offline_h: int = 168,
-            state: PlantState | None = None, local_date: date = HAND_DAY):
-    """Solve and settle one day with the toy unit: (ledger, states, inputs, decisions)."""
+            state: PlantState | None = None, local_date: date = HAND_DAY,
+            rt_lbmps: list[float] | None = None, outage_hours: frozenset[int] = frozenset()):
+    """Solve and settle one day with the toy unit: (ledger, states, inputs, decisions).
+
+    `rt_lbmps` switches RT settlement on; in `outage_hours` (hour indexes) nothing is
+    available in real time, while the day-ahead plan was made as if everything were."""
     prices = day_prices(unit.id, lbmps, local_date)
     offer = toy_offer_for(unit, local_date)
     if state is None:
         state = initial_state(unit, prices.hours[0].ts_utc, prices.hours[0].ts_local, hours_offline_h)
     decisions = commitment.solve([(prices, offer)], state, unit, solver=solver)
     ledger, states, inputs = Ledger(), [], []
-    for hour, decision in zip(prices.hours, decisions, strict=True):
-        hour_inputs = hour_inputs_for(hour, unit.id, unit.pmax_mw.value)
+    for index, (hour, decision) in enumerate(zip(prices.hours, decisions, strict=True)):
+        out = index in outage_hours
+        hour_inputs = hour_inputs_for(
+            hour, unit.id, 0.0 if out else unit.pmax_mw.value,
+            rt_lbmp_usd_per_mwh=None if rt_lbmps is None else rt_lbmps[index], forced_outage=out,
+        )
         state, entries = transition(state, decision, hour_inputs, unit,
                                     commitment_costs=solver in commitment.COMMITMENT_COST_SOLVERS)
         ledger.append(entries)

@@ -108,8 +108,8 @@ export const NODES: FlowNode[] = [
     title: "RT MARKET",
     subtitle: "NYISO real-time",
     icon: "market",
-    x: 910, y: 150, width: 140, height: 170,
-    figures: [figure("RT LBMP", "$/MWh", "money")],
+    x: 906, y: 150, width: 154, height: 170,
+    figures: [figure("RT LBMP", "$/MWh", "money", "rt_lbmp_usd_per_mwh")],
   },
   {
     id: "ledger",
@@ -119,7 +119,7 @@ export const NODES: FlowNode[] = [
     x: 1076, y: 110, width: 194, height: 250,
     figures: [
       figure("DA energy", "$", "money", "da_energy_rev_usd"),
-      figure("RT balancing", "$", "money"),
+      figure("RT balancing", "$", "money", "rt_balancing_usd"),
       figure("Fuel", "$", "money", "fuel_cost_usd"),
       figure("VOM", "$", "money", "vom_usd"),
       figure("Start + no-load", "$", "money", "start_and_no_load_cost_usd"),
@@ -179,10 +179,10 @@ export const ARROWS: FlowArrow[] = [
   {
     id: "rt_deviation",
     from: "plant", to: "rt_market",
-    path: "M800 235 H902",
+    path: "M800 235 H898",
     kind: "physical",
-    figures: [figure("Deviation", "± MW", "physical")],
-    labelX: 855, labelY: 208, labelAnchor: "middle",
+    figures: [figure("Deviation", "MW", "physical", "deviation_mw")],
+    labelX: 808, labelY: 141, labelAnchor: "start",
     milestone: 3,
   },
   {
@@ -190,7 +190,7 @@ export const ARROWS: FlowArrow[] = [
     from: "rt_market", to: "ledger",
     path: "M980 320 V398 Q980 410 992 410 H1170 Q1182 410 1182 398 V368",
     kind: "money",
-    figures: [figure("RT balancing", "± $", "money")],
+    figures: [figure("RT balancing", "$", "money", "rt_balancing_usd")],
     labelX: 1081, labelY: 434, labelAnchor: "middle",
     milestone: 3,
   },

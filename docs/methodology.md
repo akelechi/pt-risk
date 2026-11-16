@@ -185,7 +185,39 @@ cent. 6, 7, 8 as before; 8 now covers a non-empty ledger. 1, 2, 5 report `not_ap
   equals the price-taker baseline up to the offer tick. Both orderings are properties of
   the solver, so a failure means the DP is wrong, not that the month was unusual.
 
-## 14. Not yet written (rules land here before their milestone's numbers)
+## 14. Real time and outages (milestone 3)
 
-RT settlement and outages (M3), dual
+* **The decision is the day-ahead schedule.** `da_schedule_mw` is binding. Actual output
+  equals it unless capacity is short in real time; then actual output is what is
+  available, or nothing if less than Pmin is available.
+* **RT settlement** (module `rt_settlement`): `rt_balancing = (actual - da) x 1 h x
+  rt_lbmp`, at the unit's own bus, using NYISO's integrated hourly RT LBMP (Q-006). An
+  hour with no deviation carries no `rt_balancing` entry. DA revenue is booked on the
+  schedule whether or not the unit ran; fuel, no-load and VOM follow actual output.
+* **The plant never chooses to deviate.** The only source of deviation is a forced
+  outage, so the plant only ever buys its schedule back (Q-036).
+* **Forced outages** (module `outages`, needs `rt_settlement`): one Bernoulli draw per
+  unit and local day with probability EFOR; on an outage day nothing is available for
+  the whole day (Q-035). The draw is seeded by (scenario seed, unit position in the plant
+  config, calendar day), so a day's outcome does not depend on the window.
+* **What the plant knows.** The day-ahead plan is made as if the unit were available:
+  offers and plans use full Pmax, and the outage is discovered in real time. The next
+  day's plan starts from the state actually reached, so a tripped unit must start again
+  and pays for it.
+* **State is physical.** A unit on forced outage is off: it accumulates hours offline and
+  cools, whatever its schedule says.
+* **Planned capacity.** With outages drawn, the plant plans with Pmax and the derate of
+  §8 no longer applies. Without them, a scenario may set `availability: full` (Pmax) or
+  keep `derated` (Pmax x (1 - EFOR)); the first is the counterfactual used to price outages.
+* **Uplift and outages.** A commitment block ended by the unit's own outage is not made
+  whole (Q-037). Block totals count only hours actually run.
+* **Cost of outages** = energy margin of the no-outage run (`availability: full`) less
+  that of the outage run, same month, same solver.
+* **Invariant 1**: per hour, the deviation read from states (output less schedule) equals
+  the MWh on `rt_balancing` entries, and their dollars equal deviation x RT LBMP to the
+  cent; summed, actual = schedule + deviation. **Invariant 4** now includes the RT term.
+
+## 15. Not yet written (rules land here before their milestone's numbers)
+
+Dual
 fuel (M4), delivered gas (M5), capacity (M6), hedges (M7), simulation (M8), attribution (M9).

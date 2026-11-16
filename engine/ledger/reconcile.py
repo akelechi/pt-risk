@@ -173,15 +173,68 @@ def check_margin_bound(bounds: list[CommitmentBound]) -> InvariantResult:
     )
 
 
+def check_energy_balance(
+    states: list[PlantState], entries: list[LedgerEntry], hour_inputs: list[HourInputs]
+) -> InvariantResult:
+    """Invariant 1: sum of actual MW = sum of (DA schedule + deviation); the deviation line
+    is RT balancing / RT price in every hour.
+
+    Deviation is read two ways and must agree: from the states (output less schedule) and
+    from the ledger (the MWh on `rt_balancing` entries, and their dollars divided by the
+    RT LBMP). An hour with no deviation must carry no `rt_balancing` entry.
+    """
+    rt_lbmp = {(item.unit_id, item.ts_utc): item.rt_lbmp_usd_per_mwh for item in hour_inputs}
+    booked: dict[tuple[str, Any], list[LedgerEntry]] = defaultdict(list)
+    for entry in entries:
+        if entry.line == "rt_balancing":
+            booked[(entry.unit_id, entry.ts_utc)].append(entry)
+    problems: list[str] = []
+    total_actual = total_schedule = total_deviation = 0.0
+    hours_with_deviation = 0
+    for state in states:
+        key = (state.unit_id, state.ts_utc)
+        hour_entries = booked.pop(key, [])
+        deviation_mw = state.output_mw - state.da_schedule_mw
+        ledger_mwh = sum(entry.quantity for entry in hour_entries)
+        if abs(ledger_mwh - deviation_mw) > 1e-6:
+            problems.append(f"{state.unit_id} {state.ts_utc}: deviation {deviation_mw} MW, ledger {ledger_mwh} MWh")
+        price = rt_lbmp[key]
+        if hour_entries and price is None:
+            problems.append(f"{state.unit_id} {state.ts_utc}: RT balancing booked without an RT LBMP")
+        elif hour_entries:
+            expected_usd = round_to_cent_usd(deviation_mw * price)
+            if abs(sum(entry.amount_usd for entry in hour_entries) - expected_usd) > EXACT_CENT_TOLERANCE_USD:
+                problems.append(
+                    f"{state.unit_id} {state.ts_utc}: RT balancing {sum(e.amount_usd for e in hour_entries):.2f}, "
+                    f"deviation x RT LBMP = {expected_usd:.2f}"
+                )
+            hours_with_deviation += 1
+        total_actual += state.output_mw
+        total_schedule += state.da_schedule_mw
+        total_deviation += ledger_mwh
+    for unit_id, ts_utc in booked:
+        problems.append(f"{unit_id} {ts_utc}: RT balancing booked in an hour with no state")
+    if abs(total_actual - (total_schedule + total_deviation)) > 1e-6 * max(len(states), 1):
+        problems.append(f"sum actual {total_actual} != sum schedule {total_schedule} + deviation {total_deviation}")
+    return _result(
+        1,
+        problems,
+        f"{len(states)} unit-hours: actual {total_actual:,.1f} MWh = DA schedule {total_schedule:,.1f} "
+        f"+ deviation {total_deviation:,.1f} over {hours_with_deviation} hours",
+    )
+
+
 def check_revenue_identity(
     states: list[PlantState], entries: list[LedgerEntry], hour_inputs: list[HourInputs]
 ) -> InvariantResult:
     """Invariant 4: energy revenue = da_mw x da_lbmp + (actual - da) x rt_lbmp, per hour, per unit.
 
-    Milestone 1 is DA only: actual output must equal the DA schedule in every hour, and
-    the booked energy revenue must equal da_mw x da_lbmp to the cent.
+    Recomputed from states and input prices. Each term is its own ledger line rounded to
+    the cent, so the expected total is the sum of the rounded terms and must match exactly.
+    A deviation in a run with no RT price is a failure.
     """
-    lbmp = {(item.unit_id, item.ts_utc): item.da_lbmp_usd_per_mwh for item in hour_inputs}
+    da_lbmp = {(item.unit_id, item.ts_utc): item.da_lbmp_usd_per_mwh for item in hour_inputs}
+    rt_lbmp = {(item.unit_id, item.ts_utc): item.rt_lbmp_usd_per_mwh for item in hour_inputs}
     booked = _booked_by_hour(entries, ENERGY_REVENUE_LINES)
     problems: list[str] = []
     total_usd = 0.0
@@ -190,17 +243,20 @@ def check_revenue_identity(
         key = (state.unit_id, state.ts_utc)
         amounts = booked.pop(key, [])
         deviation_mw = state.output_mw - state.da_schedule_mw
+        expected_usd = round_to_cent_usd(state.da_schedule_mw * da_lbmp[key])
         if abs(deviation_mw) > 1e-9:
-            problems.append(f"{state.unit_id} {state.ts_utc}: deviation {deviation_mw} MW but RT is not settled yet")
-            continue
-        expected_usd = state.da_schedule_mw * lbmp[key]
-        if abs(sum(amounts) - expected_usd) > HALF_CENT_USD * max(len(amounts), 1):
+            if rt_lbmp[key] is None:
+                problems.append(f"{state.unit_id} {state.ts_utc}: deviation {deviation_mw} MW but RT is not settled")
+                continue
+            expected_usd += round_to_cent_usd(deviation_mw * rt_lbmp[key])
+        if abs(sum(amounts) - expected_usd) > EXACT_CENT_TOLERANCE_USD:
             problems.append(
                 f"{state.unit_id} {state.ts_utc}: booked {sum(amounts):.2f}, "
-                f"da_mw x da_lbmp = {expected_usd:.2f} ({state.da_schedule_mw} MW x {lbmp[key]})"
+                f"da_mw x da_lbmp + deviation x rt_lbmp = {expected_usd:.2f} "
+                f"({state.da_schedule_mw} MW x {da_lbmp[key]}, {deviation_mw} MW x {rt_lbmp[key]})"
             )
         total_usd += sum(amounts)
-        total_mwh += state.da_schedule_mw
+        total_mwh += state.output_mw
     for unit_id, ts_utc in booked:
         problems.append(f"{unit_id} {ts_utc}: energy revenue booked in an hour with no state")
     return _result(

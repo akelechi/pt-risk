@@ -64,6 +64,10 @@ export function CommitmentStrip({ hours, index, solver, summaries }: {
               {row.on.map((isOn, hour) =>
                 isOn ? <rect key={hour} x={hour} y={4} width={1} height={TRACK_HEIGHT - 4} className="strip-on" /> : null,
               )}
+              {position === 0 &&
+                hours.map((item, hour) =>
+                  item.forced_outage ? <rect key={`out-${hour}`} x={hour} y={0} width={1} height={4} className="strip-outage" /> : null,
+                )}
               {row.starts.map((hour) => (
                 <rect key={`start-${hour}`} x={hour} y={0} width={2} height={TRACK_HEIGHT} className="strip-start" />
               ))}
@@ -75,6 +79,11 @@ export function CommitmentStrip({ hours, index, solver, summaries }: {
       <p className="commitment-key">
         <span className="key-on" aria-hidden="true" /> on line
         <span className="key-start" aria-hidden="true" /> start
+        {hours.some((item) => item.forced_outage) && (
+          <>
+            <span className="key-outage" aria-hidden="true" /> forced outage (this run)
+          </>
+        )}
       </p>
     </section>
   );

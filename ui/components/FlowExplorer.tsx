@@ -47,7 +47,12 @@ export function FlowExplorer({ hours, solver, summaries, initialIndex = 0 }: {
     <>
       <FlowDiagram hour={hour} />
       <p className="decision">
-        <span className="decision-label">Decision</span> {hour.reason}
+        <span className="decision-label">{hour.forced_outage ? "Day-ahead plan" : "Decision"}</span> {hour.reason}
+        {hour.forced_outage && (
+          <span className="decision-outage">
+            <span className="decision-label">Real time</span> forced outage: nothing available, the schedule is bought back at the RT LBMP
+          </span>
+        )}
       </p>
       <div className="scrubber" role="group" aria-label="Hour scrubber">
         <div className="scrubber-buttons">

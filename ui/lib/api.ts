@@ -35,6 +35,10 @@ export type HourView = Pick<
   | "start_and_no_load_cost_usd"
   | "uplift_usd"
   | "started"
+  | "rt_lbmp_usd_per_mwh"
+  | "deviation_mw"
+  | "rt_balancing_usd"
+  | "forced_outage"
   | "comparison_output_mw"
 > & {
   committed: boolean;
@@ -65,6 +69,10 @@ export function toHourView(flow: HourFlow): HourView {
     start_and_no_load_cost_usd: flow.start_and_no_load_cost_usd,
     uplift_usd: flow.uplift_usd,
     started: flow.started,
+    rt_lbmp_usd_per_mwh: flow.rt_lbmp_usd_per_mwh,
+    deviation_mw: flow.deviation_mw,
+    rt_balancing_usd: flow.rt_balancing_usd,
+    forced_outage: flow.forced_outage,
     comparison_output_mw: flow.comparison_output_mw,
     committed: flow.state.committed,
     thermal_state: flow.state.thermal_state,

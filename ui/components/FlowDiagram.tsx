@@ -42,11 +42,14 @@ function FigureText({ item, hour, x, y, anchor }: {
 
 function NodeBox({ node, hour }: { node: FlowNode; hour: HourView | null }) {
   const isPlant = node.id === "plant";
-  const plantText = isPlant && hour ? `${hour.committed ? "on" : "off"}, thermal state ${hour.thermal_state}, fuel ${hour.fuel ?? "none"}` : null;
+  const plantText = isPlant && hour
+    ? `${hour.forced_outage ? "forced outage, " : ""}${hour.committed ? "on" : "off"}, thermal state ${hour.thermal_state}, fuel ${hour.fuel ?? "none"}`
+    : null;
   const label = [node.title, node.subtitle, plantText, ...node.figures.map((item) => `${item.label} ${describeFigure(item, hour)}`)]
     .filter(Boolean)
     .join(", ");
-  const lit = isPlant && hour?.committed ? " on" : "";
+  const outage = isPlant && hour?.forced_outage === true;
+  const lit = (isPlant && hour?.committed ? " on" : "") + (outage ? " outage" : "");
   return (
     <g role="img" aria-label={label} className={`node node-${node.id}${lit}`}>
       <rect x={node.x} y={node.y} width={node.width} height={node.height} rx={3} className="node-box" />
@@ -60,6 +63,14 @@ function NodeBox({ node, hour }: { node: FlowNode; hour: HourView | null }) {
       <text x={node.x + 12} y={node.y + 56} className="node-subtitle">
         {node.subtitle}
       </text>
+      {outage && (
+        // outage marker: a crossed box and the word, so it does not rely on colour
+        <g className="outage-mark" transform={`translate(${node.x + node.width - 96} ${node.y + 10})`}>
+          <rect width={86} height={18} rx={2} />
+          <path d="M5 5 L13 13 M13 5 L5 13" />
+          <text x={19} y={13}>OUTAGE</text>
+        </g>
+      )}
       {isPlant && <PlantState node={node} hour={hour} />}
       {node.figures.map((item, index) => (
         <FigureText
@@ -167,6 +178,7 @@ function Stacked({ hour }: { hour: HourView | null }) {
             <div className="stack-figure">
               <dt>State</dt>
               <dd>
+                {hour.forced_outage ? "FORCED OUTAGE · " : ""}
                 {hour.committed ? "ON" : "OFF"} · {hour.thermal_state.toUpperCase()} · fuel {hour.fuel ?? "none"}
               </dd>
             </div>

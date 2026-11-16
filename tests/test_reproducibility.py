@@ -72,8 +72,8 @@ def test_scenario_outside_the_data_window_fails_invariant_6(base_scenario):
 
 
 def test_unimplemented_modules_and_unknown_units_are_refused(base_scenario):
-    modules = base_scenario.modules.model_copy(update={"rt_settlement": True})
-    with pytest.raises(NotImplementedError, match="rt_settlement"):
+    modules = base_scenario.modules.model_copy(update={"dual_fuel": True})
+    with pytest.raises(NotImplementedError, match="dual_fuel"):
         run(base_scenario.model_copy(update={"modules": modules}), REPO_ROOT)
     with pytest.raises(ValueError, match="U9"):
         run(base_scenario.model_copy(update={"unit_ids": ["U9"]}), REPO_ROOT)
@@ -234,3 +234,79 @@ def test_m1_baseline_is_unchanged_by_milestone_2(m1_result):
     assert m1_result.meta.energy_margin_usd == 18408203.95
     assert [summary.solver for summary in m1_result.meta.solver_comparison] == ["price_taker"]
     assert m1_result.commitment_bounds == [] and m1_result.comparison_output_mw == {}
+
+
+# ------------------------------------------------------------------- milestone 3
+
+from datetime import date as _date  # noqa: E402
+
+from engine.simulate.outages import forced_outage  # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def m3_result():
+    return run(load_scenario(REPO_ROOT / "config" / "scenario.m3.yaml"), REPO_ROOT)
+
+
+@pytest.fixture(scope="module")
+def m3_no_outage_result():
+    return run(load_scenario(REPO_ROOT / "config" / "scenario.m3_no_outage.yaml"), REPO_ROOT)
+
+
+def test_outage_draws_are_seeded_and_independent_of_the_window():
+    days = [_date(2025, 1, 1 + offset) for offset in range(31)]
+    first = [forced_outage(20250101, 0, day, 0.10) for day in days]
+    assert first == [forced_outage(20250101, 0, day, 0.10) for day in days]
+    assert forced_outage(20250101, 0, _date(2025, 1, 24), 0.10) == first[23]  # one day asked alone
+    assert first != [forced_outage(20250102, 0, day, 0.10) for day in days]  # another seed
+    assert first != [forced_outage(20250101, 1, day, 0.10) for day in days]  # another unit
+    assert not any(forced_outage(1, 0, day, 0.0) for day in days)
+    assert all(forced_outage(1, 0, day, 1.0) for day in days)
+    year = [forced_outage(7, 0, _date.fromordinal(_date(2025, 1, 1).toordinal() + offset), 0.10) for offset in range(3650)]
+    assert 0.08 < sum(year) / len(year) < 0.12
+    with pytest.raises(ValueError, match="not in"):
+        forced_outage(1, 0, days[0], 1.5)
+
+
+def test_m3_january_invariants_1_3_4_5_6_7_8_pass(m3_result):
+    invariants = {result.invariant_id: result for result in m3_result.meta.invariants}
+    for invariant_id in (1, 3, 4, 5, 6, 7, 8):
+        assert invariants[invariant_id].status == "pass", invariants[invariant_id].detail
+    assert invariants[2].status == "not_applicable"
+
+
+def test_m3_outage_days_follow_the_draws(m3_result, real_unit):
+    scenario = m3_result.meta.scenario
+    drawn = {day for day in (_date(2025, 1, 1 + offset) for offset in range(31))
+             if forced_outage(scenario.seed, 0, day, real_unit.efor.value)}
+    assert {inputs.ts_local.date() for inputs in m3_result.hour_inputs if inputs.forced_outage} == drawn
+    assert len(drawn) == 3
+    for state, inputs in zip(m3_result.states, m3_result.hour_inputs, strict=True):
+        if inputs.forced_outage:
+            assert state.available_mw == 0.0 and state.output_mw == 0.0 and not state.committed
+        else:
+            assert state.available_mw == real_unit.pmax_mw.value and state.output_mw == state.da_schedule_mw
+    deviating = [e for e in m3_result.ledger if e.line == "rt_balancing"]
+    assert deviating and all(e.quantity < 0 and e.ref["cause"] == "forced outage" for e in deviating)
+    rt_refs = {inputs.rt_lbmp_ref for inputs in m3_result.hour_inputs}
+    assert all(e.ref["lbmp_rt"] in rt_refs for e in deviating)
+
+
+def test_m3_cost_of_outages_is_the_gap_to_the_no_outage_run(m3_result, m3_no_outage_result):
+    with_outages, without = m3_result.meta, m3_no_outage_result.meta
+    # the day-ahead plan cannot see the outages, but later plans start from where they left the unit
+    assert "rt_balancing" not in without.ledger_totals_usd
+    assert without.energy_margin_usd > with_outages.energy_margin_usd
+    assert with_outages.ledger_totals_usd["rt_balancing"] < 0
+    assert not any(inputs.forced_outage for inputs in m3_no_outage_result.hour_inputs)
+
+
+def test_outages_need_rt_settlement(base_scenario):
+    modules = base_scenario.modules.model_copy(update={"dispatch": True, "outages": True})
+    with pytest.raises(ValueError, match="needs module rt_settlement"):
+        run(base_scenario.model_copy(update={"modules": modules}), REPO_ROOT)
+
+
+def test_m2_number_is_unchanged_by_milestone_3(m2_result):
+    assert m2_result.meta.energy_margin_usd == 16609577.01
+    assert all(inputs.rt_lbmp_usd_per_mwh is None and not inputs.forced_outage for inputs in m2_result.hour_inputs)

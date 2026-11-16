@@ -92,12 +92,27 @@
           "decision": {
             "$ref": "#/components/schemas/Decision"
           },
+          "deviation_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deviation Mw"
+          },
           "entries": {
             "items": {
               "$ref": "#/components/schemas/LedgerEntry"
             },
             "title": "Entries",
             "type": "array"
+          },
+          "forced_outage": {
+            "title": "Forced Outage",
+            "type": "boolean"
           },
           "fuel_cost_usd": {
             "title": "Fuel Cost Usd",
@@ -171,6 +186,28 @@
             "title": "Output Mw",
             "type": "number"
           },
+          "rt_balancing_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rt Balancing Usd"
+          },
+          "rt_lbmp_usd_per_mwh": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rt Lbmp Usd Per Mwh"
+          },
           "start_and_no_load_cost_usd": {
             "title": "Start And No Load Cost Usd",
             "type": "number"
@@ -234,6 +271,10 @@
           "start_and_no_load_cost_usd",
           "uplift_usd",
           "started",
+          "rt_lbmp_usd_per_mwh",
+          "deviation_mw",
+          "rt_balancing_usd",
+          "forced_outage",
           "comparison_output_mw",
           "hour_energy_margin_usd",
           "entries",
@@ -895,6 +936,15 @@
         "additionalProperties": false,
         "description": "Everything that defines a run. Time comes from here, never from the wall clock.",
         "properties": {
+          "availability": {
+            "default": "derated",
+            "enum": [
+              "derated",
+              "full"
+            ],
+            "title": "Availability",
+            "type": "string"
+          },
           "end_date": {
             "format": "date",
             "title": "End Date",

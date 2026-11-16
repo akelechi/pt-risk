@@ -247,3 +247,93 @@ def test_invariant_5_fails_when_the_ordering_breaks():
     assert reconcile.check_margin_bound([bound(50900.0, 50900.02, 124200.0)]).status == "fail"
     assert reconcile.check_margin_bound([bound(124200.02, -17660.0, 124200.0)]).status == "fail"
     assert reconcile.check_margin_bound([]).status == "fail"
+
+
+# ------------------------------------------------------------- milestone 3
+# The milestone 2 hand day under the DP plan (on 6-21), with a forced outage in hours 16
+# and 17. RT LBMP is 90 in hour 16 and 50 in hour 17 (80 elsewhere, unused).
+#   hours 16-17: DA schedule 600 MW stands: DA revenue 42,000 each
+#                nothing delivered: RT balancing -600 x 90 = -54,000 and -600 x 50 = -30,000
+#                no fuel, no-load or VOM
+#   hour 18:     back on after 2 h off: hot start 1,500 x 4 + 8,000 = 14,000
+#   day energy margin = 50,900 (no outage) + 2 x 28,780 (costs not incurred) - 84,000 - 14,000 = 10,460
+#   the block cut short at hour 16 had cost 291,220 against DA revenue 262,800; it is not
+#   made whole, because the unit's own outage ended it
+
+M3_RT = [80.0] * 16 + [90.0, 50.0] + [80.0] * 6
+M3_OUT = frozenset({16, 17})
+
+
+def test_actual_output_follows_what_is_available(toy_unit):
+    from engine.plant.state import actual_output_mw
+
+    assert actual_output_mw(450.0, 600.0, toy_unit) == 450.0
+    assert actual_output_mw(600.0, 300.0, toy_unit) == 300.0  # derated but above Pmin
+    assert actual_output_mw(600.0, 100.0, toy_unit) == 0.0  # less than Pmin: cannot run
+    assert actual_output_mw(600.0, 0.0, toy_unit) == 0.0
+    assert settlement.rt_deviation_mwh(0.0, 600.0) == -600.0
+    assert settlement.rt_balancing_usd(0.0, 600.0, 90.0) == -54000.0
+    assert settlement.rt_balancing_usd(600.0, 600.0, 90.0) == 0.0
+
+
+def test_m3_hand_day_outage_is_bought_back_at_rt(toy_unit, m2_lbmps):
+    ledger, states, inputs, decisions = run_day(toy_unit, m2_lbmps, "dp", rt_lbmps=M3_RT, outage_hours=M3_OUT)
+    entries = list(ledger.entries)
+    assert amounts(entries, states[16].ts_utc) == {"da_energy_rev": 42000.00, "rt_balancing": -54000.00}
+    assert amounts(entries, states[17].ts_utc) == {"da_energy_rev": 42000.00, "rt_balancing": -30000.00}
+    rt = [e for e in entries if e.line == "rt_balancing"]
+    assert [(e.quantity, e.price) for e in rt] == [(-600.0, 90.0), (-600.0, 50.0)]
+    assert rt[0].ref == {"lbmp_rt": "hand:rt", "cause": "forced outage"}
+    # the plan still says on; the state says what happened
+    assert decisions[16].commit and decisions[16].target_mw == 600.0
+    assert (states[16].committed, states[16].output_mw, states[16].da_schedule_mw, states[16].available_mw) == (False, 0.0, 600.0, 0.0)
+    assert [s.hours_in_state_h for s in states[15:19]] == [10, 1, 2, 1]
+    assert sum(e.amount_usd for e in entries if e.line == "start_cost" and e.ts_utc == states[18].ts_utc) == -14000.00
+    totals = ledger_totals_usd(ledger)
+    assert totals["rt_balancing"] == -84000.00 and totals["start_cost"] == -59000.00
+    assert "uplift" not in totals
+    assert energy_margin_usd(totals) == 10460.00
+    units = {"U1": toy_unit}
+    balance = reconcile.check_energy_balance(states, entries, inputs)
+    assert balance.status == "pass" and "deviation -1,200.0 over 2 hours" in balance.detail
+    assert reconcile.check_revenue_identity(states, entries, inputs).status == "pass"
+    assert reconcile.check_cost_identity(states, entries, inputs, units, True, 168).status == "pass"
+
+
+def test_invariants_1_and_4_catch_rt_tampering(toy_unit, m2_lbmps):
+    ledger, states, inputs, _ = run_day(toy_unit, m2_lbmps, "dp", rt_lbmps=M3_RT, outage_hours=M3_OUT)
+    entries = list(ledger.entries)
+    index = next(i for i, e in enumerate(entries) if e.line == "rt_balancing")
+
+    def both(changed):
+        return (reconcile.check_energy_balance(states, changed, inputs).status,
+                reconcile.check_revenue_identity(states, changed, inputs).status)
+
+    one_cent = entries[:index] + [entries[index].model_copy(update={"amount_usd": -54000.01})] + entries[index + 1:]
+    assert both(one_cent) == ("fail", "fail")
+    dropped = entries[:index] + entries[index + 1:]
+    assert both(dropped) == ("fail", "fail")
+    stray = entries + [entries[index].model_copy(update={"ts_utc": states[8].ts_utc, "ts_local": states[8].ts_local})]
+    assert both(stray) == ("fail", "fail")
+    # a state that claims it delivered while the ledger bought everything back
+    delivered = states[:16] + [states[16].model_copy(update={"output_mw": 600.0})] + states[17:]
+    assert reconcile.check_energy_balance(delivered, entries, inputs).status == "fail"
+
+
+def test_a_deviation_cannot_be_settled_without_an_rt_price(toy_unit, m2_lbmps):
+    with pytest.raises(ValueError, match="needs an RT LBMP"):
+        run_day(toy_unit, m2_lbmps, "dp", outage_hours=M3_OUT)
+
+
+def test_no_outage_means_no_rt_entries(toy_unit, m2_lbmps):
+    ledger, states, inputs, _ = run_day(toy_unit, m2_lbmps, "dp", rt_lbmps=M3_RT)
+    assert "rt_balancing" not in ledger_totals_usd(ledger)
+    assert energy_margin_usd(ledger_totals_usd(ledger)) == 50900.00
+    assert reconcile.check_energy_balance(states, list(ledger.entries), inputs).status == "pass"
+
+
+def test_price_taker_with_limits_block_ended_by_outage_gets_no_uplift(toy_unit, m2_lbmps):
+    """Plan B's first block (6-13) loses 24,320 and is made whole when it ends by plan;
+    if an outage ends it instead, it is not."""
+    ledger, _, _, _ = run_day(toy_unit, m2_lbmps, "price_taker_constrained", rt_lbmps=M3_RT, outage_hours=frozenset({12, 13}))
+    assert "uplift" not in ledger_totals_usd(ledger)

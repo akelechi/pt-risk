@@ -44,6 +44,12 @@ def deterministic_available_mw(unit: UnitParams) -> float:
     return round(unit.pmax_mw.value * (1.0 - unit.efor.value), MW_DECIMALS)
 
 
+def planned_available_mw(unit: UnitParams, full: bool) -> float:
+    """Capacity the plant plans and offers with, MW: Pmax when `full` (outages are drawn
+    separately, or the scenario asks for it), otherwise Pmax x (1 - EFOR)."""
+    return round(unit.pmax_mw.value, MW_DECIMALS) if full else deterministic_available_mw(unit)
+
+
 def true_blocks(unit: UnitParams, cap_mw: float | None = None) -> list[HeatRateBlock]:
     """Physical heat-rate blocks from 0 MW up to `cap_mw` (default Pmax), in output order."""
     cap = unit.pmax_mw.value if cap_mw is None else min(cap_mw, unit.pmax_mw.value)

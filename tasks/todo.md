@@ -56,5 +56,6 @@ Each on its own branch, in order, with tests, note, methodology, questions, scre
 - [x] M2 `milestone-2`: no-load, start cost by thermal state, three-part offer, DP (2-day
       rolling), price-taker with run-time limits, uplift, invariant 5, commitment timeline.
       January 2025 U1: DP 16,609,577.01 with 4 starts; baseline 18,408,203.95 with 14.
-- [ ] M3 `milestone-3`: RT settlement on deviations, seeded daily outages, invariants 1 and 4.
+- [x] M3 `milestone-3`: RT settlement on deviations, seeded daily outages, invariants 1 and 4.
+      January 2025 U1, seed 20250101: cost of outages 1,410,633.56 (one costly day of three drawn).
 - [ ] M4 `milestone-4`: oil price table, fuel choice, inventory, permit hours, barge, invariant 2.
