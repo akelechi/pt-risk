@@ -29,7 +29,7 @@ export default async function FlowPage({ searchParams }: { searchParams: Promise
       <main className="page">
         <div className="page-head">
           <p className="eyebrow">Flow</p>
-          <h1>One hour of the plant</h1>
+          <h1>The plant, hour by hour</h1>
           {run && unit && meta?.online ? (
             <dl className="run-strip">
               <div>
