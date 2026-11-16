@@ -57,15 +57,15 @@ def test_unknown_run_and_bad_scenarios(client: TestClient, scenario_body: dict):
     assert client.get("/runs/..%2F..%2Fconfig").status_code == 404
     assert client.post("/runs", json={**scenario_body, "end_date": "2024-01-01"}).status_code == 422
     assert client.post("/runs", json={**scenario_body, "unit_ids": ["U9"]}).status_code == 422
-    modules = {**scenario_body["modules"], "dual_fuel": True}
+    modules = {**scenario_body["modules"], "gas_basis": True}
     assert client.post("/runs", json={**scenario_body, "modules": modules}).status_code == 501
 
 
 def test_params_lists_every_leaf_with_provenance(client: TestClient):
     params = ParamsResponse.model_validate(client.get("/params").json())
     assert params.plant_name == "Roseton"
-    assert len(params.leaves) == 36 and params.assumed_parameter_count == 29
-    assert params.status_counts == {"public": 7, "assumed": 29, "confirmed": 0}
+    assert len(params.leaves) == 38 and params.assumed_parameter_count == 31
+    assert params.status_counts == {"public": 7, "assumed": 31, "confirmed": 0}
     assert all(leaf.source and leaf.unit for leaf in params.leaves)
 
 

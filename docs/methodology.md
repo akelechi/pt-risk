@@ -217,7 +217,41 @@ cent. 6, 7, 8 as before; 8 now covers a non-empty ledger. 1, 2, 5 report `not_ap
   the MWh on `rt_balancing` entries, and their dollars equal deviation x RT LBMP to the
   cent; summed, actual = schedule + deviation. **Invariant 4** now includes the RT term.
 
-## 15. Not yet written (rules land here before their milestone's numbers)
+## 15. Dual fuel (milestone 4)
 
-Dual
-fuel (M4), delivered gas (M5), capacity (M6), hedges (M7), simulation (M8), attribution (M9).
+* **Oil price table (`oil_price`).** EIA's daily New York Harbor No. 2 heating oil spot
+  price, $/gal as published and $/bbl (x 42). Published days only; a day with no price
+  uses the last published one, at most 7 days old, as for gas. EIA publishes no daily
+  price for No. 6 residual oil, which is what the station burns (Q-039).
+* **The plant's oil price** = No. 2 index $/bbl x `oil_price_ratio_to_no2_distillate`
+  (assumed 0.70) / `oil_mmbtu_per_bbl` (6.3), in $/MMBtu.
+* **Heat on oil.** Every MMBtu (curve fuel, no-load, start fuel) is multiplied by
+  1 + `oil_heat_rate_penalty_fraction` when the unit burns oil.
+* **Fuel choice, once per local day:** the cheaper per MMBtu of gas-equivalent heat, i.e.
+  oil when oil price x (1 + penalty) is strictly below delivered gas, and oil is
+  available (Q-040). The day's offer, plan and settlement all use that fuel.
+* **Oil is available for a day** when (1) the tank at the start of the day, counting a
+  barge due by then, holds a worst-case day (every hour at full available output plus a
+  cold start), and (2) permit hours used this year plus the hours of the day do not pass
+  `oil_permit_hours_per_year`. Otherwise gas is used whatever it costs. The worst-case
+  rule keeps the tank from going negative without planning inventory inside the solver.
+* **Tank.** Each hour on oil draws oil MMBtu / heat content, and uses one permit hour.
+  Permit hours reset when the calendar year changes.
+* **Barge.** At the first hour of each local day: a barge due by today is unloaded (up to
+  tank capacity); then, if the tank is below `oil_target_inventory_bbl` and nothing is on
+  order, a barge for the difference is ordered, arriving `barge_lead_days` later (Q-041).
+* **Cost of oil** is the day's oil price on the MMBtu burned (`fuel_cost_oil`, and the
+  no-load and start lines). Barge purchases are not a ledger line: the tank is valued at
+  the price of the day it is burned (Q-042).
+* **One unit.** The tank and permit are the station's; a scenario with dual fuel and more
+  than one unit is refused until they are shared properly (Q-007).
+* **The look-ahead day's fuel** is chosen with the same rule from today's state.
+* **Invariant 2**: per hour, the MMBtu the state implies (output through the heat-rate
+  curve, no-load when on, start fuel on a start, all x the oil multiplier on oil) equals
+  the MMBtu booked, on the right fuel's line; the tank moves by deliveries less oil MMBtu
+  / heat content and stays within 0 and capacity; permit hours rise by one per hour on
+  oil and never pass the limit. **Invariant 3** prices each hour at the fuel it burned.
+
+## 16. Not yet written (rules land here before their milestone's numbers)
+
+Delivered gas (M5), capacity (M6), hedges (M7), simulation (M8), attribution (M9).

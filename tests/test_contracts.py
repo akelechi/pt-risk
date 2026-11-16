@@ -179,11 +179,11 @@ def test_real_plant_config_loads_with_full_provenance():
     plant = load_plant(PLANT_PATH)
     leaves = flatten_leaves(plant)
     assert [unit.id for unit in plant.units] == ["U1", "U2"]
-    assert len(leaves) == 36
+    assert len(leaves) == 38
     assert all(leaf.source and leaf.unit and leaf.status for leaf in leaves)
     counts = status_counts(plant)
     assert sum(counts.values()) == len(leaves)
-    assert counts == {"public": 7, "assumed": 29, "confirmed": 0}
+    assert counts == {"public": 7, "assumed": 31, "confirmed": 0}
     assert "units.U1.pmax_mw" in {leaf.path for leaf in leaves}
 
 

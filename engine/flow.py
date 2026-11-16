@@ -29,6 +29,10 @@ def hour_flows(result: RunResult, unit_id: str | None = None, month: str | None 
         entries_by_hour[(entry.unit_id, entry.ts_utc)].append(entry)
     offers = {(offer.unit_id, offer.local_date): offer for offer in result.offers}
 
+    dual_fuel = result.meta.scenario.modules.dual_fuel
+    tank_capacity_bbl = result.meta.oil_tank_capacity_bbl or 1.0
+    permit_hours_per_year_h = result.meta.oil_permit_hours_per_year_h
+
     flows: list[HourFlow] = []
     was_on: dict[str, bool] = {}
     for position, (state, decision, inputs) in enumerate(
@@ -60,7 +64,7 @@ def hour_flows(result: RunResult, unit_id: str | None = None, month: str | None 
                 gas_price_usd_per_mmbtu=inputs.gas_price_usd_per_mmbtu,
                 gas_index_price_usd_per_mmbtu=inputs.gas_index_price_usd_per_mmbtu,
                 gas_basis_adder_usd_per_mmbtu=inputs.gas_basis_adder_usd_per_mmbtu,
-                gas_burn_mmbtu=sum(entry.quantity for entry in fuel_entries if entry.line == "fuel_cost_gas"),
+                gas_burn_mmbtu=sum(e.quantity for e in entries if e.quantity_unit == "MMBtu" and state.fuel == "gas"),
                 da_energy_rev_usd=_sum_usd(entries, ("da_energy_rev",)),
                 fuel_cost_usd=_sum_usd(entries, FUEL_LINES),
                 vom_usd=_sum_usd(entries, ("vom",)),
@@ -73,6 +77,16 @@ def hour_flows(result: RunResult, unit_id: str | None = None, month: str | None 
                 deviation_mw=None if inputs.rt_lbmp_usd_per_mwh is None else state.output_mw - state.da_schedule_mw,
                 rt_balancing_usd=None if inputs.rt_lbmp_usd_per_mwh is None else _sum_usd(entries, ("rt_balancing",)),
                 forced_outage=inputs.forced_outage,
+                fuel_reason=offer.fuel_reason,
+                oil_price_usd_per_mmbtu=inputs.oil_price_usd_per_mmbtu,
+                oil_burn_mmbtu=(
+                    sum(e.quantity for e in entries if e.quantity_unit == "MMBtu" and state.fuel == "oil") if dual_fuel else None
+                ),
+                oil_inventory_bbl=state.oil_inventory_bbl if dual_fuel else None,
+                oil_inventory_fill_fraction=state.oil_inventory_bbl / tank_capacity_bbl if dual_fuel else None,
+                oil_received_bbl=state.oil_received_bbl if dual_fuel else None,
+                oil_permit_hours_used_ytd_h=state.oil_permit_hours_used_ytd_h if dual_fuel else None,
+                oil_permit_hours_per_year_h=permit_hours_per_year_h if dual_fuel else None,
                 comparison_output_mw={name: series[position] for name, series in result.comparison_output_mw.items()},
                 hour_energy_margin_usd=_sum_usd(entries, ENERGY_MARGIN_LINES),
                 entries=entries,
@@ -81,6 +95,7 @@ def hour_flows(result: RunResult, unit_id: str | None = None, month: str | None 
                     "gas_price": inputs.gas_price_ref,
                     "gas_basis": GAS_BASIS_PARAM,
                     **({"lbmp_rt": inputs.rt_lbmp_ref} if inputs.rt_lbmp_ref else {}),
+                    **({"oil_price": inputs.oil_price_ref} if inputs.oil_price_ref else {}),
                 },
             )
         )

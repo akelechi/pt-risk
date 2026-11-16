@@ -844,3 +844,42 @@ body {
   margin-left: 12px;
   background: var(--danger);
 }
+
+/* ------------------------------------------------- milestone 4: dual fuel */
+
+.gauge-fill {
+  fill: var(--physical);
+  stroke: none;
+}
+
+.fuel-switch .state.active > path,
+.fuel-switch .state.active > rect {
+  fill: var(--physical);
+  stroke: var(--physical);
+}
+
+/* the supply arrow in use is heavier; the other fades */
+.arrow.burning .arrow-line {
+  stroke-width: 2.6;
+}
+
+.arrow.idle {
+  opacity: 0.45;
+}
+
+.decision-fuel {
+  display: block;
+  margin-top: 3px;
+}
+
+.strip-oil {
+  fill: var(--viz-3);
+}
+
+.key-oil {
+  display: inline-block;
+  width: 14px;
+  height: 4px;
+  margin-left: 12px;
+  background: var(--viz-3);
+}

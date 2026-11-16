@@ -18,7 +18,8 @@ from engine.contracts import CommitmentBound, HourInputs, InvariantResult, Ledge
 from engine.inputs.timeutil import time_integrity_problems
 from engine.ledger.ledger import round_to_cent_usd
 from engine.plant import cost
-from engine.plant.params import UnitParams, provenance_problems
+from engine.plant import fuel as fuel_rules
+from engine.plant.params import FuelParams, UnitParams, provenance_problems
 
 INVARIANT_NAMES = {
     1: "Energy balance",
@@ -78,6 +79,31 @@ def _booked_by_hour(entries: Iterable[LedgerEntry], lines: tuple[str, ...]) -> d
     return booked
 
 
+def _expected_fuel(
+    state: PlantState,
+    before: PlantState | None,
+    unit: UnitParams,
+    commitment_costs: bool,
+    initial_hours_offline_h: int,
+    fuel: FuelParams | None,
+) -> tuple[list[float], float, bool]:
+    """What one hour should have burned, from its state alone: (MMBtu components, other
+    start cost in USD, whether the unit started). Components are curve fuel, then no-load,
+    then start fuel; on oil each is multiplied by 1 + the heat-rate penalty."""
+    multiplier = fuel_rules.heat_input_multiplier("oil", fuel) if state.fuel == "oil" and fuel is not None else 1.0
+    components = [cost.fuel_burn_mmbtu_per_h(unit, state.output_mw) * multiplier]
+    other_usd, started = 0.0, False
+    if commitment_costs and state.committed:
+        components.append(cost.no_load_fuel_mmbtu_per_h(unit) * multiplier)
+        was_on = before.committed if before is not None else False
+        if not was_on:
+            hours_offline_h = before.hours_in_state_h if before is not None else initial_hours_offline_h
+            spec = cost.start_spec(unit, cost.thermal_state(hours_offline_h, unit))
+            components.append(spec.start_fuel_mmbtu * multiplier)
+            other_usd, started = spec.start_other_cost_usd, True
+    return components, other_usd, started
+
+
 def check_cost_identity(
     states: list[PlantState],
     entries: list[LedgerEntry],
@@ -85,17 +111,20 @@ def check_cost_identity(
     units: dict[str, UnitParams],
     commitment_costs: bool = False,
     initial_hours_offline_h: int = 0,
+    fuel: FuelParams | None = None,
 ) -> InvariantResult:
     """Invariant 3: fuel_cost_* + start_cost + no_load_cost = MMBtu x price by fuel, to the cent.
 
     Recomputed independently of the ledger. MMBtu per hour = the state's output through
     the true heat-rate curve; with `commitment_costs`, plus no-load fuel in every hour on
-    line and start fuel in the hour of a start. Price from the hour's inputs. The other
-    (non-fuel) start cost is added per start. A start is an off-to-on change between
-    consecutive states of a unit; its thermal state follows the hours offline before it
-    (`initial_hours_offline_h` before the first hour of the run). Gas only so far.
+    line and start fuel in the hour of a start; on oil, all multiplied by 1 + the oil
+    heat-rate penalty. The price is the hour's gas or oil price according to the fuel the
+    state burned. The other (non-fuel) start cost is added per start. A start is an
+    off-to-on change between consecutive states of a unit; its thermal state follows the
+    hours offline before it (`initial_hours_offline_h` before the first hour of the run).
     """
-    prices = {(item.unit_id, item.ts_utc): item.gas_price_usd_per_mmbtu for item in hour_inputs}
+    gas_price = {(item.unit_id, item.ts_utc): item.gas_price_usd_per_mmbtu for item in hour_inputs}
+    oil_price = {(item.unit_id, item.ts_utc): item.oil_price_usd_per_mmbtu for item in hour_inputs}
     booked = _booked_by_hour(entries, FUEL_SIDE_LINES)
     problems: list[str] = []
     total_mmbtu = 0.0
@@ -108,29 +137,24 @@ def check_cost_identity(
         amounts = booked.pop(key, [])
         before = previous.get(state.unit_id)
         previous[state.unit_id] = state
-        if state.output_mw > 0 and state.fuel != "gas":
-            problems.append(f"{state.unit_id} {state.ts_utc}: running on {state.fuel}, not modelled yet")
+        price = oil_price[key] if state.fuel == "oil" else gas_price[key]
+        if state.fuel == "oil" and (price is None or fuel is None):
+            problems.append(f"{state.unit_id} {state.ts_utc}: running on oil without an oil price")
             continue
         # Each component is a separate ledger line rounded to the cent, so the expected
         # total is the sum of the rounded components and must match exactly.
-        components_mmbtu = [cost.fuel_burn_mmbtu_per_h(unit, state.output_mw)]
-        other_usd = 0.0
-        if commitment_costs and state.committed:
-            components_mmbtu.append(cost.no_load_fuel_mmbtu_per_h(unit))
-            was_on = before.committed if before is not None else False
-            if not was_on:
-                hours_offline_h = before.hours_in_state_h if before is not None else initial_hours_offline_h
-                spec = cost.start_spec(unit, cost.thermal_state(hours_offline_h, unit))
-                components_mmbtu.append(spec.start_fuel_mmbtu)
-                other_usd = round_to_cent_usd(spec.start_other_cost_usd)
-                starts += 1
+        components_mmbtu, other_start_usd, started = _expected_fuel(
+            state, before, unit, commitment_costs, initial_hours_offline_h, fuel
+        )
+        other_usd = round_to_cent_usd(other_start_usd)
+        starts += int(started)
         mmbtu = sum(components_mmbtu)
-        expected_usd = -(sum(round_to_cent_usd(part * prices[key]) for part in components_mmbtu) + other_usd)
+        expected_usd = -(sum(round_to_cent_usd(part * price) for part in components_mmbtu) + other_usd)
         if abs(sum(amounts) - expected_usd) > EXACT_CENT_TOLERANCE_USD:
             problems.append(
                 f"{state.unit_id} {state.ts_utc}: booked {sum(amounts):.2f}, "
                 f"MMBtu x price + other start cost = {expected_usd:.2f} "
-                f"({mmbtu:.3f} MMBtu x {prices[key]:.4f} + {other_usd:.2f})"
+                f"({mmbtu:.3f} MMBtu x {price:.4f} + {other_usd:.2f})"
             )
         total_mmbtu += mmbtu
         total_usd += sum(amounts)
@@ -142,6 +166,80 @@ def check_cost_identity(
         problems,
         f"{len(states)} unit-hours: fuel-side cost {total_usd:,.2f} USD on {total_mmbtu:,.1f} MMBtu{with_starts}, "
         "each hour to the cent",
+    )
+
+
+def check_fuel_balance(
+    states: list[PlantState],
+    entries: list[LedgerEntry],
+    hour_inputs: list[HourInputs],
+    units: dict[str, UnitParams],
+    fuel: FuelParams,
+    commitment_costs: bool,
+    initial_hours_offline_h: int,
+    initial_oil_inventory_bbl: float,
+) -> InvariantResult:
+    """Invariant 2: MMBtu burned = sum(IHR x MWh) + no-load hours x no-load + start fuel;
+    oil bbl drawn = oil MMBtu / heat content; inventory never negative; permit hours never
+    exceeded.
+
+    Per hour: the MMBtu the state should have burned (recomputed from output, on/off and
+    the start before it) must equal the MMBtu booked on the fuel-side ledger lines, on the
+    line of the fuel the state burned. The tank must move by exactly deliveries less oil
+    MMBtu / heat content, stay between 0 and its capacity, and permit hours must rise by
+    one in each hour on oil and never pass the yearly limit. One unit (station tank).
+    """
+    del hour_inputs  # prices are not part of the fuel balance
+    booked: dict[tuple[str, Any], dict[str, float]] = defaultdict(lambda: defaultdict(float))
+    for entry in entries:
+        if entry.line in FUEL_SIDE_LINES and entry.quantity_unit == "MMBtu":
+            booked[(entry.unit_id, entry.ts_utc)][entry.line] += entry.quantity
+    problems: list[str] = []
+    totals = {"gas": 0.0, "oil": 0.0}
+    oil_hours = 0
+    received_bbl = 0.0
+    previous: dict[str, PlantState] = {}
+    for state in states:
+        key = (state.unit_id, state.ts_utc)
+        before = previous.get(state.unit_id)
+        previous[state.unit_id] = state
+        where = f"{state.unit_id} {state.ts_utc}"
+        expected = sum(_expected_fuel(state, before, units[state.unit_id], commitment_costs, initial_hours_offline_h, fuel)[0])
+        lines = booked.pop(key, {})
+        ledger_mmbtu = sum(lines.values())
+        if abs(ledger_mmbtu - expected) > 1e-6:
+            problems.append(f"{where}: ledger {ledger_mmbtu:.3f} MMBtu, state implies {expected:.3f}")
+        wrong_line = "fuel_cost_gas" if state.fuel == "oil" else "fuel_cost_oil"
+        if lines.get(wrong_line, 0.0) > 0:
+            problems.append(f"{where}: burning {state.fuel} but {wrong_line} is booked")
+        on_oil = state.fuel == "oil"
+        oil_mmbtu = expected if on_oil else 0.0
+        if state.fuel is not None:
+            totals[state.fuel] += expected
+        inventory_before = before.oil_inventory_bbl if before is not None else initial_oil_inventory_bbl
+        permit_before = before.oil_permit_hours_used_ytd_h if before is not None else 0.0
+        if before is not None and before.ts_local.year != state.ts_local.year:
+            permit_before = 0.0
+        implied_inventory = inventory_before + state.oil_received_bbl - oil_mmbtu / fuel.oil_mmbtu_per_bbl.value
+        if abs(state.oil_inventory_bbl - implied_inventory) > 1e-6:
+            problems.append(f"{where}: tank {state.oil_inventory_bbl:.3f} bbl, balance implies {implied_inventory:.3f}")
+        if state.oil_inventory_bbl < 0 or state.oil_inventory_bbl > fuel.oil_tank_capacity_bbl.value + 1e-6:
+            problems.append(f"{where}: tank {state.oil_inventory_bbl:.1f} bbl is outside 0..capacity")
+        if abs(state.oil_permit_hours_used_ytd_h - (permit_before + (1.0 if on_oil else 0.0))) > 1e-9:
+            problems.append(f"{where}: permit hours {state.oil_permit_hours_used_ytd_h}, expected {permit_before + on_oil}")
+        if state.oil_permit_hours_used_ytd_h > fuel.oil_permit_hours_per_year.value + 1e-9:
+            problems.append(f"{where}: permit hours {state.oil_permit_hours_used_ytd_h} exceed the yearly limit")
+        oil_hours += int(on_oil)
+        received_bbl += state.oil_received_bbl
+    for unit_id, ts_utc in booked:
+        problems.append(f"{unit_id} {ts_utc}: fuel booked in an hour with no state")
+    final_bbl = states[-1].oil_inventory_bbl if states else initial_oil_inventory_bbl
+    return _result(
+        2,
+        problems,
+        f"{len(states)} unit-hours: gas {totals['gas']:,.1f} MMBtu, oil {totals['oil']:,.1f} MMBtu = "
+        f"{totals['oil'] / fuel.oil_mmbtu_per_bbl.value:,.1f} bbl over {oil_hours} permit hours; tank "
+        f"{initial_oil_inventory_bbl:,.1f} + {received_bbl:,.1f} received - burn = {final_bbl:,.1f} bbl",
     )
 
 

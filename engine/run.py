@@ -7,8 +7,9 @@ code always has the same id. Time comes from the scenario; the wall clock is nev
 Modules implemented: `dispatch` (milestone 1: price-taker, gas only, DA only) and
 `dp_commitment` (milestone 2: DP commitment with start cost, no-load and run-time limits,
 plus the price-taker baselines it is compared with), `rt_settlement` and `outages`
-(milestone 3: seeded daily forced outages, deviations settled at the RT LBMP). A scenario
-that switches on any other module is refused. With `dispatch` off the run only loads and verifies its inputs.
+(milestone 3: seeded daily forced outages, deviations settled at the RT LBMP), and
+`dual_fuel` (milestone 4: daily choice between gas and tank oil, inventory, permit hours,
+barge). A scenario that switches on any other module is refused. With `dispatch` off the run only loads and verifies its inputs.
 """
 
 from __future__ import annotations
@@ -41,8 +42,9 @@ from engine.inputs import store
 from engine.ledger import reconcile
 from engine.ledger.ledger import Ledger
 from engine.market.offer import build_offer
-from engine.market.prices import GasPrices, delivered_gas_price_usd_per_mmbtu, lbmp_row_ref
+from engine.market.prices import GasPrices, OilIndexPrices, delivered_gas_price_usd_per_mmbtu, lbmp_row_ref
 from engine.plant import commitment, cost
+from engine.plant import fuel as fuel_rules
 from engine.plant.params import Plant, flatten_leaves, parse_plant, status_counts
 from engine.plant.state import initial_state, transition
 from engine.simulate.outages import forced_outage
@@ -51,8 +53,9 @@ from engine.version import code_version
 REPO_ROOT = Path(__file__).resolve().parents[1]
 HOURLY_TABLES = ("lbmp_da", "lbmp_rt")
 DAILY_TABLES = ("gas_price",)
+DUAL_FUEL_TABLES = ("oil_price",)  # loaded only when module dual_fuel is on
 RUN_ID_LENGTH = 12
-IMPLEMENTED_MODULES = {"dispatch", "dp_commitment", "rt_settlement", "outages"}
+IMPLEMENTED_MODULES = {"dispatch", "dp_commitment", "rt_settlement", "outages", "dual_fuel"}
 # Index the assumed basis adder is added to. Module gas_basis (milestone 5) replaces the
 # adder with a published delivered index.
 BASE_GAS_POINT = "HENRY"
@@ -82,6 +85,7 @@ class Execution:
     offers: list[Offer] = field(default_factory=list)
     hour_inputs: list[HourInputs] = field(default_factory=list)
     commitment_bounds: list[CommitmentBound] = field(default_factory=list)
+    initial_oil_inventory_bbl: float = 0.0
 
 
 def load_scenario(path: Path) -> Scenario:
@@ -109,7 +113,7 @@ def _summary(name: str, table: pd.DataFrame, snapshot_id: str) -> TableSummary:
         locations = sorted(table["location"].unique().tolist())
     else:
         first, last = table["date"].min().isoformat(), table["date"].max().isoformat()
-        locations = sorted(table["point"].unique().tolist())
+        locations = sorted(table["point" if "point" in table else "product"].unique().tolist())
     return TableSummary(
         table=name, rows=len(table), first_local=first, last_local=last, locations=locations, snapshot_id=snapshot_id
     )
@@ -152,11 +156,14 @@ def _execute(
     not_implemented = sorted(switched_on - IMPLEMENTED_MODULES)
     if not_implemented:
         raise NotImplementedError(f"modules not implemented yet: {not_implemented}")
-    for module in ("dp_commitment", "rt_settlement", "outages"):
+    for module in ("dp_commitment", "rt_settlement", "outages", "dual_fuel"):
         if module in switched_on and "dispatch" not in switched_on:
             raise ValueError(f"module {module} needs module dispatch")
     if "outages" in switched_on and "rt_settlement" not in switched_on:
         raise ValueError("module outages needs module rt_settlement: an outage is a deviation to settle")
+    dual_fuel = "dual_fuel" in switched_on
+    if dual_fuel and len(scenario.unit_ids) != 1:
+        raise NotImplementedError("module dual_fuel supports one unit: the tank and permit are shared by the station (Q-007)")
     execution = Execution()
     if "dispatch" not in switched_on:
         return execution
@@ -167,6 +174,10 @@ def _execute(
     basis_adder_by_month = plant.fuel.gas_basis_adder_usd_per_mmbtu_by_month.value
     ptid_of_unit = {item["unit_id"]: item["ptid"] for item in market_raw["locations"] if item.get("unit_id")}
     lbmp_da = inputs["lbmp_da"]
+    oil_index = (
+        OilIndexPrices(inputs["oil_price"], market_raw["gas_price_max_staleness_days"]) if dual_fuel else None
+    )
+    fuel_params = plant.fuel if dual_fuel else None
     settle_rt = "rt_settlement" in switched_on
     draw_outages = "outages" in switched_on
     unit_position = {unit.id: position for position, unit in enumerate(plant.units)}
@@ -182,8 +193,18 @@ def _execute(
         # What the plant plans and offers with. Outages, when drawn, are not known day-ahead.
         available_mw = cost.planned_available_mw(unit, full=draw_outages or scenario.availability == "full")
         first_hour = days[0].hours[0]
+        initial_oil_bbl = 0.0
+        if dual_fuel:
+            initial_oil_bbl = (
+                plant.fuel.oil_target_inventory_bbl.value
+                if scenario.initial_oil_inventory_bbl is None
+                else scenario.initial_oil_inventory_bbl
+            )
+            if initial_oil_bbl > plant.fuel.oil_tank_capacity_bbl.value:
+                raise ValueError("initial_oil_inventory_bbl exceeds the tank capacity")
+        execution.initial_oil_inventory_bbl = initial_oil_bbl
         state = initial_state(
-            unit, first_hour.ts_utc, first_hour.ts_local, scenario.initial_hours_offline_h, available_mw
+            unit, first_hour.ts_utc, first_hour.ts_local, scenario.initial_hours_offline_h, available_mw, initial_oil_bbl
         )
         rt_of_hour: dict = {}
         if settle_rt:
@@ -195,20 +216,47 @@ def _execute(
                 )
 
         gas_of_day = []
-        offers = []
+        oil_of_day: list[tuple[float | None, float | None, str | None]] = []
         for day in days:
             gas_index_price, gas_ref = gas.on(day.local_date)
             gas_price, gas_basis_adder = delivered_gas_price_usd_per_mmbtu(
                 gas_index_price, basis_adder_by_month, day.local_date
             )
             gas_of_day.append((gas_price, gas_index_price, gas_basis_adder, gas_ref))
-            offers.append(
-                build_offer(unit, day.local_date, "gas", gas_price, gas_ref, available_mw, market_raw["offer_price_decimals"])
-            )
+            if oil_index is None:
+                oil_of_day.append((None, None, None))
+            else:
+                no2_usd_per_bbl, oil_ref = oil_index.on(day.local_date)
+                oil_of_day.append((fuel_rules.oil_price_usd_per_mmbtu(no2_usd_per_bbl, plant.fuel), no2_usd_per_bbl, oil_ref))
 
+        def offer_for(position: int, at_state: PlantState) -> Offer:
+            """The offer for day `position`, with the fuel chosen from what `at_state` allows."""
+            day_ = days[position]
+            gas_price_, _, _, gas_ref_ = gas_of_day[position]
+            oil_price_, _, oil_ref_ = oil_of_day[position]
+            if oil_price_ is None:
+                return build_offer(unit, day_.local_date, "gas", gas_price_, gas_ref_, available_mw, price_decimals)
+            unavailable = fuel_rules.oil_unavailable_reason(
+                at_state, unit, plant.fuel, day_.local_date, len(day_.hours), available_mw
+            )
+            chosen, why = fuel_rules.choose_fuel(gas_price_, oil_price_, plant.fuel, unavailable)
+            if chosen == "oil":
+                return build_offer(
+                    unit, day_.local_date, "oil", oil_price_, oil_ref_, available_mw, price_decimals,
+                    fuel_rules.heat_input_multiplier("oil", plant.fuel), why,
+                )
+            return build_offer(unit, day_.local_date, "gas", gas_price_, gas_ref_, available_mw, price_decimals, 1.0, why)
+
+        price_decimals = market_raw["offer_price_decimals"]
         for index, day in enumerate(days):
             gas_price, gas_index_price, gas_basis_adder, gas_ref = gas_of_day[index]
-            horizon = list(zip(days[index : index + PLANNING_HORIZON_DAYS], offers[index : index + PLANNING_HORIZON_DAYS]))
+            oil_price, oil_index_price, oil_ref = oil_of_day[index]
+            # Today's offer and, for the look-ahead, tomorrow's as it looks from today's state.
+            horizon = [
+                (days[position], offer_for(position, state))
+                for position in range(index, min(index + PLANNING_HORIZON_DAYS, len(days)))
+            ]
+            offers = {index: horizon[0][1]}
             decisions = commitment.solve(horizon, state, unit, solver=solver)
             if solver == "dp":
                 execution.commitment_bounds.append(commitment.margin_bound(unit, horizon, state))
@@ -234,8 +282,13 @@ def _execute(
                     rt_lbmp_usd_per_mwh=rt_lbmp,
                     rt_lbmp_ref=rt_ref,
                     forced_outage=on_outage,
+                    oil_price_usd_per_mmbtu=oil_price,
+                    oil_index_price_usd_per_bbl=oil_index_price,
+                    oil_price_ref=oil_ref,
                 )
-                state, entries = transition(state, decision, hour_inputs, unit, commitment_costs=commitment_costs)
+                state, entries = transition(
+                    state, decision, hour_inputs, unit, commitment_costs=commitment_costs, fuel=fuel_params
+                )
                 execution.ledger.append(entries)
                 execution.states.append(state)
                 execution.decisions.append(decision)
@@ -303,7 +356,8 @@ def run(scenario: Scenario, root: Path = REPO_ROOT) -> RunResult:
     for name in HOURLY_TABLES:
         table, snapshot_ids[name] = store.read_table(root, name)
         inputs[name] = _slice_hourly(table, scenario, timezone, ptids)
-    for name in DAILY_TABLES:
+    daily_tables = (*DAILY_TABLES, *(DUAL_FUEL_TABLES if scenario.modules.dual_fuel else ()))
+    for name in daily_tables:
         table, snapshot_ids[name] = store.read_table(root, name)
         inputs[name] = table[table["date"] <= scenario.end_date].reset_index(drop=True)
 
@@ -327,9 +381,15 @@ def run(scenario: Scenario, root: Path = REPO_ROOT) -> RunResult:
         reconcile.check_energy_balance(execution.states, entries, execution.hour_inputs)
         if scenario.modules.rt_settlement
         else reconcile.module_off(1, "rt_settlement"),
-        reconcile.pending(2),
+        reconcile.check_fuel_balance(
+            execution.states, entries, execution.hour_inputs, units, plant.fuel, commitment_costs,
+            scenario.initial_hours_offline_h, execution.initial_oil_inventory_bbl,
+        )
+        if scenario.modules.dual_fuel
+        else reconcile.module_off(2, "dual_fuel"),
         reconcile.check_cost_identity(
-            execution.states, entries, execution.hour_inputs, units, commitment_costs, scenario.initial_hours_offline_h
+            execution.states, entries, execution.hour_inputs, units, commitment_costs,
+            scenario.initial_hours_offline_h, plant.fuel,
         )
         if dispatching
         else reconcile.module_off(3, "dispatch"),
@@ -368,11 +428,13 @@ def run(scenario: Scenario, root: Path = REPO_ROOT) -> RunResult:
         seed=scenario.seed,
         ledger_hash=ledger_hash,
         ledger_entry_count=len(ledger),
-        inputs=[_summary(name, inputs[name], snapshot_ids[name]) for name in (*HOURLY_TABLES, *DAILY_TABLES)],
+        inputs=[_summary(name, inputs[name], snapshot_ids[name]) for name in (*HOURLY_TABLES, *daily_tables)],
         invariants=invariants,
         assumed_parameter_count=assumed_count,
         ledger_totals_usd=totals,
         energy_margin_usd=energy_margin_usd(totals),
+        oil_tank_capacity_bbl=plant.fuel.oil_tank_capacity_bbl.value if scenario.modules.dual_fuel else None,
+        oil_permit_hours_per_year_h=plant.fuel.oil_permit_hours_per_year.value if scenario.modules.dual_fuel else None,
         solver=solver,
         solver_comparison=(
             [solver_summary(solver, execution), *(solver_summary(name, run_) for name, run_ in comparisons.items())]

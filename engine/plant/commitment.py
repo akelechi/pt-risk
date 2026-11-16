@@ -64,14 +64,16 @@ def hour_margin_usd(unit: UnitParams, offer: Offer, lbmp_usd_per_mwh: float, out
     fuel_mmbtu = cost.fuel_burn_mmbtu_per_h(unit, output_mw) + (cost.no_load_fuel_mmbtu_per_h(unit) if no_load else 0.0)
     return (
         lbmp_usd_per_mwh * output_mw
-        - fuel_mmbtu * offer.fuel_price_usd_per_mmbtu
+        - fuel_mmbtu * offer.heat_input_multiplier * offer.fuel_price_usd_per_mmbtu
         - unit.vom_usd_per_mwh.value * output_mw
     )
 
 
 def start_cost_usd(unit: UnitParams, offer: Offer, hours_offline_h: int) -> float:
     """Cost of starting after `hours_offline_h` hours off, at the offer's fuel price."""
-    return cost.start_cost_usd(unit, cost.thermal_state(hours_offline_h, unit), offer.fuel_price_usd_per_mmbtu)
+    return cost.start_cost_usd(
+        unit, cost.thermal_state(hours_offline_h, unit), offer.fuel_price_usd_per_mmbtu, offer.heat_input_multiplier
+    )
 
 
 def can_start(unit: UnitParams, hours_off_h: int) -> bool:

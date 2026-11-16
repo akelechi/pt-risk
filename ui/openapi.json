@@ -118,6 +118,10 @@
             "title": "Fuel Cost Usd",
             "type": "number"
           },
+          "fuel_reason": {
+            "title": "Fuel Reason",
+            "type": "string"
+          },
           "gas_basis_adder_usd_per_mmbtu": {
             "title": "Gas Basis Adder Usd Per Mmbtu",
             "type": "number"
@@ -181,6 +185,83 @@
           "offered_mw": {
             "title": "Offered Mw",
             "type": "number"
+          },
+          "oil_burn_mmbtu": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oil Burn Mmbtu"
+          },
+          "oil_inventory_bbl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oil Inventory Bbl"
+          },
+          "oil_inventory_fill_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oil Inventory Fill Fraction"
+          },
+          "oil_permit_hours_per_year_h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oil Permit Hours Per Year H"
+          },
+          "oil_permit_hours_used_ytd_h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oil Permit Hours Used Ytd H"
+          },
+          "oil_price_usd_per_mmbtu": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oil Price Usd Per Mmbtu"
+          },
+          "oil_received_bbl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oil Received Bbl"
           },
           "output_mw": {
             "title": "Output Mw",
@@ -275,6 +356,14 @@
           "deviation_mw",
           "rt_balancing_usd",
           "forced_outage",
+          "fuel_reason",
+          "oil_price_usd_per_mmbtu",
+          "oil_burn_mmbtu",
+          "oil_inventory_bbl",
+          "oil_inventory_fill_fraction",
+          "oil_received_bbl",
+          "oil_permit_hours_used_ytd_h",
+          "oil_permit_hours_per_year_h",
           "comparison_output_mw",
           "hour_energy_margin_usd",
           "entries",
@@ -715,6 +804,36 @@
             "title": "Hours In State H",
             "type": "integer"
           },
+          "oil_barge_bbl": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Oil Barge Bbl",
+            "type": "number"
+          },
+          "oil_barge_due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oil Barge Due"
+          },
+          "oil_day": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oil Day"
+          },
           "oil_inventory_bbl": {
             "minimum": 0.0,
             "title": "Oil Inventory Bbl",
@@ -723,6 +842,12 @@
           "oil_permit_hours_used_ytd_h": {
             "minimum": 0.0,
             "title": "Oil Permit Hours Used Ytd H",
+            "type": "number"
+          },
+          "oil_received_bbl": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Oil Received Bbl",
             "type": "number"
           },
           "output_mw": {
@@ -840,6 +965,28 @@
             "title": "Ledger Totals Usd",
             "type": "object"
           },
+          "oil_permit_hours_per_year_h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oil Permit Hours Per Year H"
+          },
+          "oil_tank_capacity_bbl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oil Tank Capacity Bbl"
+          },
           "run_id": {
             "title": "Run Id",
             "type": "string"
@@ -954,6 +1101,18 @@
             "minimum": 0.0,
             "title": "Initial Hours Offline H",
             "type": "integer"
+          },
+          "initial_oil_inventory_bbl": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initial Oil Inventory Bbl"
           },
           "market_config": {
             "title": "Market Config",

@@ -24,8 +24,10 @@ export type Figure = {
   kind: Kind;
   /** Engine field shown here; absent = no engine value exists for this figure yet. */
   field?: NumericKey;
-  /** Second engine field, shown as the upper end of a range (e.g. an offer's last step). */
+  /** Second engine field, shown after the first: the upper end of a range, or a limit. */
   fieldTo?: NumericKey;
+  /** Text between the two values; default an en dash (a range). */
+  joiner?: string;
   format: NumberFormat;
 };
 
@@ -71,7 +73,7 @@ export function arrowsFor(hour: HourView | null): FlowArrow[] {
 export const VIEW_BOX = { width: 1280, height: 620 } as const;
 
 const FORMAT_OF_UNIT: Record<string, NumberFormat> = {
-  "$/MWh": "price", "$/MMBtu": "price", "$": "usd", "± $": "usd", MW: "mw", "± MW": "mw", MMBtu: "mmbtu", bbl: "mmbtu",
+  "$/MWh": "price", "$/MMBtu": "price", "$": "usd", "± $": "usd", MW: "mw", "± MW": "mw", MMBtu: "mmbtu", bbl: "mmbtu", h: "mmbtu",
 };
 
 const figure = (label: string, unit: string, kind: Kind, field?: NumericKey, fieldTo?: NumericKey): Figure => ({
@@ -101,7 +103,7 @@ export const NODES: FlowNode[] = [
     subtitle: "Roseton · Zone G",
     icon: "plant",
     x: 590, y: 130, width: 210, height: 210,
-    figures: [figure("Output", "MW", "physical", "output_mw"), figure("Oil inventory", "bbl", "physical")],
+    figures: [figure("Output", "MW", "physical", "output_mw"), figure("Oil inventory", "bbl", "physical", "oil_inventory_bbl")],
   },
   {
     id: "rt_market",
@@ -138,10 +140,10 @@ export const NODES: FlowNode[] = [
   {
     id: "oil",
     title: "OIL",
-    subtitle: "Tank",
+    subtitle: "Tank · No. 6 residual",
     icon: "tank",
-    x: 730, y: 480, width: 120, height: 100,
-    figures: [],
+    x: 730, y: 480, width: 172, height: 100,
+    figures: [{ ...figure("Permit used", "h", "physical", "oil_permit_hours_used_ytd_h", "oil_permit_hours_per_year_h"), joiner: " of " }],
   },
 ];
 
@@ -228,7 +230,7 @@ export const ARROWS: FlowArrow[] = [
     from: "oil", to: "plant",
     path: "M790 480 V412 Q790 400 778 400 H752 Q740 400 740 388 V348",
     kind: "money",
-    figures: [figure("Oil", "$/MMBtu", "money"), figure("Oil burn", "MMBtu", "physical")],
+    figures: [figure("Oil, assumed ratio", "$/MMBtu", "money", "oil_price_usd_per_mmbtu"), figure("Oil burn", "MMBtu", "physical", "oil_burn_mmbtu")],
     labelX: 804, labelY: 430, labelAnchor: "start",
     milestone: 4,
   },
@@ -243,7 +245,7 @@ export function figureValue(item: Figure, hour: HourView | null): string | null 
   if (from === null) return null;
   const to = item.fieldTo === undefined ? null : hour[item.fieldTo];
   if (to !== null && to !== from) {
-    return `${formatNumber(from, item.format)} – ${formatNumber(to, item.format)}`;
+    return `${formatNumber(from, item.format)}${item.joiner ?? " – "}${formatNumber(to, item.format)}`;
   }
   return formatNumber(from, item.format);
 }

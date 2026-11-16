@@ -39,6 +39,13 @@ export type HourView = Pick<
   | "deviation_mw"
   | "rt_balancing_usd"
   | "forced_outage"
+  | "fuel_reason"
+  | "oil_price_usd_per_mmbtu"
+  | "oil_burn_mmbtu"
+  | "oil_inventory_bbl"
+  | "oil_inventory_fill_fraction"
+  | "oil_permit_hours_used_ytd_h"
+  | "oil_permit_hours_per_year_h"
   | "comparison_output_mw"
 > & {
   committed: boolean;
@@ -73,6 +80,13 @@ export function toHourView(flow: HourFlow): HourView {
     deviation_mw: flow.deviation_mw,
     rt_balancing_usd: flow.rt_balancing_usd,
     forced_outage: flow.forced_outage,
+    fuel_reason: flow.fuel_reason,
+    oil_price_usd_per_mmbtu: flow.oil_price_usd_per_mmbtu,
+    oil_burn_mmbtu: flow.oil_burn_mmbtu,
+    oil_inventory_bbl: flow.oil_inventory_bbl,
+    oil_inventory_fill_fraction: flow.oil_inventory_fill_fraction,
+    oil_permit_hours_used_ytd_h: flow.oil_permit_hours_used_ytd_h,
+    oil_permit_hours_per_year_h: flow.oil_permit_hours_per_year_h,
     comparison_output_mw: flow.comparison_output_mw,
     committed: flow.state.committed,
     thermal_state: flow.state.thermal_state,

@@ -8,7 +8,7 @@ from datetime import date, timedelta
 import pandas as pd
 import pytest
 
-from engine.contracts import GasPriceRow, LbmpDaRow, LbmpRtRow
+from engine.contracts import GasPriceRow, OilPriceRow, LbmpDaRow, LbmpRtRow
 from engine.inputs import eia, nyiso, store
 from engine.inputs.build import RAW_MANIFEST, load_raw_files
 from tests.conftest import FIXTURES, REPO_ROOT, build_fixture_table, read_fixture
@@ -91,7 +91,7 @@ def test_inconsistent_energy_across_locations_is_refused(raw_dst_frames, locatio
 # ------------------------------------------------------------- curated tables (real)
 
 
-@pytest.mark.parametrize("name,model", [("lbmp_da", LbmpDaRow), ("lbmp_rt", LbmpRtRow), ("gas_price", GasPriceRow)])
+@pytest.mark.parametrize("name,model", [("lbmp_da", LbmpDaRow), ("lbmp_rt", LbmpRtRow), ("gas_price", GasPriceRow), ("oil_price", OilPriceRow)])
 def test_curated_table_rows_satisfy_contract_and_manifest(name, model):
     table, snapshot_id = store.read_table(REPO_ROOT, name)  # raises if content != manifest
     manifest = store.read_manifest(REPO_ROOT)["tables"][name]
@@ -102,7 +102,7 @@ def test_curated_table_rows_satisfy_contract_and_manifest(name, model):
 
 def test_curated_source_ids_trace_to_raw_manifest():
     raw = {row["sha256"][:16] for row in json.loads((REPO_ROOT / RAW_MANIFEST).read_text())["files"]}
-    for name in ("lbmp_da", "lbmp_rt", "gas_price", "eia_plant_reference"):
+    for name in ("lbmp_da", "lbmp_rt", "gas_price", "oil_price", "eia_plant_reference"):
         table, _ = store.read_table(REPO_ROOT, name)
         assert set(table["source_id"]) <= raw
 
@@ -164,3 +164,13 @@ def test_henry_hub_loader_against_raw_file():
 def test_fixture_zips_exist():
     names = sorted(path.name for path in (FIXTURES / "nyiso").glob("*.zip"))
     assert names == ["damlbmp_gen_dst.zip", "damlbmp_zone_dst.zip", "rtlbmp_gen_dst.zip", "rtlbmp_zone_dst.zip"]
+
+
+def test_oil_price_is_the_published_no2_index(market: dict):
+    table, _ = store.read_table(REPO_ROOT, "oil_price")
+    assert set(table["product"]) == {"NO2_NY_HARBOR"}
+    assert table["date"].is_unique and table["date"].is_monotonic_increasing
+    assert all(day.weekday() < 5 for day in table["date"])  # published trading days only
+    assert ((table["price_usd_per_bbl"] - table["price_usd_per_gal"] * 42).abs() < 1e-3).all()
+    january = table[(table["date"] >= date(2025, 1, 1)) & (table["date"] <= date(2025, 1, 31))]
+    assert len(january) == 20 and 2.2 < january["price_usd_per_gal"].min() and january["price_usd_per_gal"].max() < 2.6

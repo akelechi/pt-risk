@@ -68,6 +68,10 @@ export function CommitmentStrip({ hours, index, solver, summaries }: {
                 hours.map((item, hour) =>
                   item.forced_outage ? <rect key={`out-${hour}`} x={hour} y={0} width={1} height={4} className="strip-outage" /> : null,
                 )}
+              {position === 0 &&
+                hours.map((item, hour) =>
+                  item.fuel === "oil" ? <rect key={`oil-${hour}`} x={hour} y={TRACK_HEIGHT - 4} width={1} height={4} className="strip-oil" /> : null,
+                )}
               {row.starts.map((hour) => (
                 <rect key={`start-${hour}`} x={hour} y={0} width={2} height={TRACK_HEIGHT} className="strip-start" />
               ))}
@@ -79,6 +83,11 @@ export function CommitmentStrip({ hours, index, solver, summaries }: {
       <p className="commitment-key">
         <span className="key-on" aria-hidden="true" /> on line
         <span className="key-start" aria-hidden="true" /> start
+        {hours.some((item) => item.fuel === "oil") && (
+          <>
+            <span className="key-oil" aria-hidden="true" /> on oil (this run)
+          </>
+        )}
         {hours.some((item) => item.forced_outage) && (
           <>
             <span className="key-outage" aria-hidden="true" /> forced outage (this run)

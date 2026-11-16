@@ -153,6 +153,23 @@ class GasPriceRow(BaseModel):
     source_id: str
 
 
+class OilPriceRow(BaseModel):
+    """Row of curated table `oil_price`: one published day of a public oil price index.
+
+    The table holds the published index only (New York Harbor No. 2 heating oil). The
+    plant's own oil price is derived from it in the engine with a plant parameter.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    date: Date
+    product: Literal["NO2_NY_HARBOR"]
+    price_usd_per_gal: float = Field(gt=0)  # as published
+    price_usd_per_bbl: float = Field(gt=0)  # x 42 gal/bbl
+    as_of: Date
+    source_id: str
+
+
 # --------------------------------------------------------------- state & decisions
 
 Fuel = Literal["gas", "oil"]
@@ -177,6 +194,12 @@ class PlantState(Stamped):
     # Running totals of the current commitment block (start to shutdown), for uplift.
     commitment_block_cost_usd: float = Field(default=0.0, ge=0)
     commitment_block_da_revenue_usd: float = 0.0
+    # Oil logistics (station-level). `oil_day` is the local day whose start-of-day step
+    # (barge arrival, reorder, permit-year reset) has been applied.
+    oil_day: Date | None = None
+    oil_received_bbl: float = Field(default=0.0, ge=0)  # delivered in this hour
+    oil_barge_due: Date | None = None  # local day a barge on order arrives
+    oil_barge_bbl: float = Field(default=0.0, ge=0)
 
 
 class Decision(Stamped):
@@ -222,6 +245,8 @@ class Offer(BaseModel):
     fuel: Fuel
     fuel_price_usd_per_mmbtu: float
     fuel_price_ref: str  # id of the gas/oil price row used
+    heat_input_multiplier: float = Field(default=1.0, ge=1.0)  # 1 on gas, 1 + penalty on oil
+    fuel_reason: str = "gas only"  # why this fuel was chosen for the day
     available_mw: float = Field(ge=0)
     blocks: list[OfferBlock]
     min_gen_mw: float = Field(default=0.0, ge=0)  # 0 when the unit cannot run (available < Pmin)
@@ -287,6 +312,9 @@ class HourInputs(Stamped):
     rt_lbmp_usd_per_mwh: float | None = None  # None when RT is not settled (module off)
     rt_lbmp_ref: str | None = None
     forced_outage: bool = False
+    oil_price_usd_per_mmbtu: float | None = None  # the plant's oil price; None when dual fuel is off
+    oil_index_price_usd_per_bbl: float | None = None  # published No. 2 index behind it
+    oil_price_ref: str | None = None
 
     @model_validator(mode="after")
     def _delivered_is_index_plus_basis(self) -> "HourInputs":
@@ -399,6 +427,8 @@ class Scenario(BaseModel):
     # Capacity the plant plans with when outages are not drawn: "derated" = Pmax x (1 - EFOR),
     # "full" = Pmax. With module `outages` on it is always Pmax, and outage days are drawn.
     availability: Literal["derated", "full"] = "derated"
+    # Oil in the tank at the first hour (dual fuel only); None = the plant's target level.
+    initial_oil_inventory_bbl: float | None = Field(default=None, ge=0)
     modules: Modules = Modules()
     seed: int
 
@@ -473,6 +503,9 @@ class RunMeta(BaseModel):
     assumed_parameter_count: int
     ledger_totals_usd: dict[str, float]  # sum of amount_usd by ledger line (view, not stored twice)
     energy_margin_usd: float  # DA + RT energy revenue less fuel, start, no-load, VOM, emissions
+    # Plant figures the flow payload needs for the oil gauge (None when dual fuel is off).
+    oil_tank_capacity_bbl: float | None = None
+    oil_permit_hours_per_year_h: float | None = None
     solver: str = "price_taker"  # commitment solver behind the ledger
     solver_comparison: list[SolverSummary] = []  # the ledger's solver first, then the baselines
 
@@ -533,6 +566,14 @@ class HourFlow(Stamped):
     deviation_mw: float | None  # actual output less DA schedule; None when RT is not settled
     rt_balancing_usd: float | None  # signed: negative when the plant buys back its schedule; None when RT is not settled
     forced_outage: bool
+    fuel_reason: str  # why the day's fuel was chosen
+    oil_price_usd_per_mmbtu: float | None  # None when dual fuel is off
+    oil_burn_mmbtu: float | None
+    oil_inventory_bbl: float | None
+    oil_inventory_fill_fraction: float | None  # inventory / tank capacity, for the gauge
+    oil_received_bbl: float | None
+    oil_permit_hours_used_ytd_h: float | None
+    oil_permit_hours_per_year_h: float | None
     comparison_output_mw: dict[str, float]  # output this hour under each comparison solver
     hour_energy_margin_usd: float
     entries: list[LedgerEntry]

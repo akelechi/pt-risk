@@ -242,3 +242,43 @@ a decision; no milestone builds it.
 - Assumption: Pmax, not Pmax x (1 - EFOR); applying both would count unavailability twice.
 - Consequence: a no-outage month is $1.97M better than the derated milestone 2 month.
 - Confirm: owner.
+
+## Raised in milestone 4
+
+**Q-039 Oil price source** (M4, open). The brief asks for an `oil_price` table in $/MMBtu and
+$/bbl; EIA publishes no daily price for No. 6 residual oil.
+- Assumption: load EIA's daily New York Harbor No. 2 heating oil spot price (public) and
+  derive the plant's price as index $/bbl x 0.70 / 6.3 MMBtu/bbl. The 0.70 ratio is a new
+  `assumed` plant parameter. The table holds the published index only ($/gal, $/bbl), so
+  its columns differ from the brief's.
+- Sensitivity: the ratio decides whether oil is ever used. At 0.70 oil costs about $12.3
+  per MMBtu of gas-equivalent heat in mid-January 2025, against gas at $12.86 on four days.
+- Confirm: a published No. 6 0.3%S New York Harbor price, or the plant's contract.
+
+**Q-040 "Cheaper $/MMBtu"** (M4, open).
+- Assumption: compared per MMBtu of gas-equivalent heat, i.e. oil price x (1 + penalty)
+  against delivered gas. VOM and CO2 are the same on both fuels in this model.
+- Confirm: owner; the literal reading compares the two prices without the penalty.
+
+**Q-041 Barge and target level** (M4, open).
+- Assumption: `oil_target_inventory_bbl` = 250,000 (new, `assumed`); the run starts at
+  target unless the scenario says otherwise; a barge for the gap to target is ordered at
+  the start of any day the tank is below target and none is on order; it arrives
+  `barge_lead_days` (5) later; one barge can carry any amount.
+- Confirm: plant records (tank working volume, barge size, reorder practice).
+
+**Q-042 Cost of oil burned** (M4, open).
+- Assumption: the day's oil price (replacement cost). Barge purchases are not booked;
+  there is no inventory account and no carrying cost.
+- Confirm: owner; alternative is weighted-average inventory cost with barge purchases as
+  a cash line.
+
+**Q-043 Dual fuel with two units** (M4, open; see Q-007).
+- Assumption: refused. The tank and the permit belong to the station, and the run loop
+  settles units one after another.
+- Confirm: owner, when two-unit dual-fuel runs are needed.
+
+**Q-044 Fuel switching** (M4, open).
+- Assumption: the fuel is fixed for a local day and changes at midnight at no cost, even
+  while the unit is running.
+- Confirm: plant operations (switching time, derate during a switch).

@@ -58,4 +58,11 @@ Each on its own branch, in order, with tests, note, methodology, questions, scre
       January 2025 U1: DP 16,609,577.01 with 4 starts; baseline 18,408,203.95 with 14.
 - [x] M3 `milestone-3`: RT settlement on deviations, seeded daily outages, invariants 1 and 4.
       January 2025 U1, seed 20250101: cost of outages 1,410,633.56 (one costly day of three drawn).
-- [ ] M4 `milestone-4`: oil price table, fuel choice, inventory, permit hours, barge, invariant 2.
+- [x] M4 `milestone-4`: oil price table, fuel choice, inventory, permit hours, barge, invariant 2.
+      January 2025 U1: oil chosen 4 days, burned 2 (39 h), margin captured 157,835.53.
+
+### Review (milestones 2-4)
+
+- All eight invariants are checked and pass on the milestone 4 January run.
+- Carried forward, not built: Ledger / Commitment / Parameters screens, arrow click-through,
+  two-unit dual fuel, economic RT deviations, ramp rate, CO2 cost.

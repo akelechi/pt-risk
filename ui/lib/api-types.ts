@@ -213,6 +213,8 @@ export interface components {
             forced_outage: boolean;
             /** Fuel Cost Usd */
             fuel_cost_usd: number;
+            /** Fuel Reason */
+            fuel_reason: string;
             /** Gas Basis Adder Usd Per Mmbtu */
             gas_basis_adder_usd_per_mmbtu: number;
             /** Gas Burn Mmbtu */
@@ -237,6 +239,20 @@ export interface components {
             offer_min_price_usd_per_mwh: number | null;
             /** Offered Mw */
             offered_mw: number;
+            /** Oil Burn Mmbtu */
+            oil_burn_mmbtu: number | null;
+            /** Oil Inventory Bbl */
+            oil_inventory_bbl: number | null;
+            /** Oil Inventory Fill Fraction */
+            oil_inventory_fill_fraction: number | null;
+            /** Oil Permit Hours Per Year H */
+            oil_permit_hours_per_year_h: number | null;
+            /** Oil Permit Hours Used Ytd H */
+            oil_permit_hours_used_ytd_h: number | null;
+            /** Oil Price Usd Per Mmbtu */
+            oil_price_usd_per_mmbtu: number | null;
+            /** Oil Received Bbl */
+            oil_received_bbl: number | null;
             /** Output Mw */
             output_mw: number;
             /** Rt Balancing Usd */
@@ -483,10 +499,24 @@ export interface components {
             fuel: ("gas" | "oil") | null;
             /** Hours In State H */
             hours_in_state_h: number;
+            /**
+             * Oil Barge Bbl
+             * @default 0
+             */
+            oil_barge_bbl: number;
+            /** Oil Barge Due */
+            oil_barge_due?: string | null;
+            /** Oil Day */
+            oil_day?: string | null;
             /** Oil Inventory Bbl */
             oil_inventory_bbl: number;
             /** Oil Permit Hours Used Ytd H */
             oil_permit_hours_used_ytd_h: number;
+            /**
+             * Oil Received Bbl
+             * @default 0
+             */
+            oil_received_bbl: number;
             /** Output Mw */
             output_mw: number;
             /**
@@ -544,6 +574,10 @@ export interface components {
             ledger_totals_usd: {
                 [key: string]: number;
             };
+            /** Oil Permit Hours Per Year H */
+            oil_permit_hours_per_year_h?: number | null;
+            /** Oil Tank Capacity Bbl */
+            oil_tank_capacity_bbl?: number | null;
             /** Run Id */
             run_id: string;
             scenario: components["schemas"]["Scenario"];
@@ -604,6 +638,8 @@ export interface components {
             end_date: string;
             /** Initial Hours Offline H */
             initial_hours_offline_h: number;
+            /** Initial Oil Inventory Bbl */
+            initial_oil_inventory_bbl?: number | null;
             /** Market Config */
             market_config: string;
             /**

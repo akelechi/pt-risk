@@ -32,7 +32,7 @@ def test_run_records_what_makes_it_reproducible(base_scenario):
     assert len(meta.config_hash) == 64 and len(meta.run_id) == 12
     assert set(meta.data_snapshot_ids) == {"lbmp_da", "lbmp_rt", "gas_price"}
     assert meta.code_version and meta.seed == base_scenario.seed
-    assert meta.assumed_parameter_count == 29
+    assert meta.assumed_parameter_count == 31
     assert {table.table: table.rows for table in meta.inputs} == {"lbmp_da": 26280, "lbmp_rt": 26280, "gas_price": 269}
 
 
@@ -72,8 +72,8 @@ def test_scenario_outside_the_data_window_fails_invariant_6(base_scenario):
 
 
 def test_unimplemented_modules_and_unknown_units_are_refused(base_scenario):
-    modules = base_scenario.modules.model_copy(update={"dual_fuel": True})
-    with pytest.raises(NotImplementedError, match="dual_fuel"):
+    modules = base_scenario.modules.model_copy(update={"gas_basis": True})
+    with pytest.raises(NotImplementedError, match="gas_basis"):
         run(base_scenario.model_copy(update={"modules": modules}), REPO_ROOT)
     with pytest.raises(ValueError, match="U9"):
         run(base_scenario.model_copy(update={"unit_ids": ["U9"]}), REPO_ROOT)

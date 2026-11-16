@@ -123,7 +123,7 @@ def test_transition_guard_rails(toy_unit, hand_lbmps):
         transition(state, decide(ts_utc=other.ts_utc, ts_local=other.ts_local), inputs, toy_unit)
     with pytest.raises(ValueError, match="same unit"):
         transition(state, decide(unit_id="U2"), inputs, toy_unit)
-    with pytest.raises(NotImplementedError, match="milestone 4"):
+    with pytest.raises(ValueError, match="needs the fuel parameters and an oil price"):
         transition(state, decide(fuel="oil"), inputs, toy_unit)
 
 

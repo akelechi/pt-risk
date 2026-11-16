@@ -83,6 +83,15 @@
       "first_local": "2024-12-02",
       "last_local": "2025-12-31"
     },
+    "oil_price": {
+      "snapshot_id": "d24b96d577caff88",
+      "rows": 269,
+      "raw_source_ids": [
+        "d9a8feed78852424"
+      ],
+      "first_local": "2024-12-02",
+      "last_local": "2025-12-31"
+    },
     "eia_plant_reference": {
       "snapshot_id": "4f8d3b488c04d03e",
       "rows": 16,

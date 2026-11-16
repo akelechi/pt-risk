@@ -49,6 +49,11 @@ EIA923_FIELDS = {
 }
 
 
+OIL_PRICE_COLUMNS = ["date", "product", "price_usd_per_gal", "price_usd_per_bbl", "as_of", "source_id"]
+NO2_HEADER_WORDS = ("new york harbor", "no. 2 heating oil", "dollars per gallon")
+GALLONS_PER_BBL = 42.0  # definition of the US oil barrel
+
+
 class EiaFormatError(ValueError):
     """An EIA file does not look like the layout this loader was written for."""
 
@@ -85,6 +90,35 @@ def load_henry_hub(raw_file: RawFile, first_date: date, last_date: date) -> pd.D
     table["as_of"] = raw_file.as_of
     table["source_id"] = raw_file.source_id
     return table.sort_values("date").reset_index(drop=True)[GAS_PRICE_COLUMNS]
+
+
+def load_no2_ny_harbor(raw_file: RawFile, first_date: date, last_date: date) -> pd.DataFrame:
+    """New York Harbor No. 2 heating oil daily spot, $/gal and $/bbl, for published days in
+    [first_date, last_date]. Same rules as Henry Hub: published days only, a dated row
+    without a price inside the range is refused."""
+    sheet = pd.read_excel(raw_file.path, sheet_name=HENRY_HUB_SHEET, header=None)
+    header_rows = sheet.index[sheet[0].astype(str).str.strip() == "Date"]
+    if len(header_rows) != 1:
+        raise EiaFormatError(f"{raw_file.path}: expected one 'Date' header row in {HENRY_HUB_SHEET!r}")
+    header_row = int(header_rows[0])
+    title = str(sheet.iloc[header_row, 1]).lower()
+    if not all(word in title for word in NO2_HEADER_WORDS):
+        raise EiaFormatError(f"{raw_file.path}: unexpected series title {title!r}")
+    data = sheet.iloc[header_row + 1 :, :2].dropna(how="all")
+    table = pd.DataFrame({"date": pd.to_datetime(data[0]).dt.date, "price_usd_per_gal": pd.to_numeric(data[1])})
+    if table["date"].duplicated().any():
+        raise EiaFormatError(f"{raw_file.path}: duplicate dates")
+    table = table[(table["date"] >= first_date) & (table["date"] <= last_date)].copy()
+    blank = table.loc[table["price_usd_per_gal"].isna(), "date"]
+    if not blank.empty:
+        raise EiaFormatError(f"{raw_file.path}: dated rows without a price: {blank.tolist()}")
+    if table.empty:
+        raise EiaFormatError(f"{raw_file.path}: no prices between {first_date} and {last_date}")
+    table["product"] = "NO2_NY_HARBOR"
+    table["price_usd_per_bbl"] = (table["price_usd_per_gal"] * GALLONS_PER_BBL).round(4)
+    table["as_of"] = raw_file.as_of
+    table["source_id"] = raw_file.source_id
+    return table.sort_values("date").reset_index(drop=True)[OIL_PRICE_COLUMNS]
 
 
 def _member(archive: zipfile.ZipFile, prefix: str) -> str:

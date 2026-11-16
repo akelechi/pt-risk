@@ -22,6 +22,8 @@ def build_offer(
     fuel_price_ref: str,
     available_mw: float,
     price_decimals: int,
+    heat_input_multiplier: float = 1.0,
+    fuel_reason: str = "gas only",
 ) -> Offer:
     """Offer for one unit and local day.
 
@@ -39,10 +41,12 @@ def build_offer(
         return OfferBlock(
             mw_from=block.mw_from,
             mw_to=block.mw_to,
-            incremental_heat_rate_mmbtu_per_mwh=block.incremental_heat_rate_mmbtu_per_mwh,
+            incremental_heat_rate_mmbtu_per_mwh=block.incremental_heat_rate_mmbtu_per_mwh * heat_input_multiplier,
             price_usd_per_mwh=round(
                 cost.marginal_cost_usd_per_mwh(
-                    block.incremental_heat_rate_mmbtu_per_mwh, fuel_price_usd_per_mmbtu, unit.vom_usd_per_mwh.value
+                    block.incremental_heat_rate_mmbtu_per_mwh * heat_input_multiplier,
+                    fuel_price_usd_per_mmbtu,
+                    unit.vom_usd_per_mwh.value,
                 ),
                 price_decimals,
             ),
@@ -51,9 +55,12 @@ def build_offer(
     return Offer(
         min_gen_mw=unit.pmin_mw.value if can_run else 0.0,
         blocks_above_min_gen=[step(block) for block in above],
-        no_load_cost_usd_per_h=cost.no_load_fuel_mmbtu_per_h(unit) * fuel_price_usd_per_mmbtu,
+        heat_input_multiplier=heat_input_multiplier,
+        fuel_reason=fuel_reason,
+        no_load_cost_usd_per_h=cost.no_load_fuel_mmbtu_per_h(unit) * heat_input_multiplier * fuel_price_usd_per_mmbtu,
         start_cost_usd_by_thermal_state={
-            state: cost.start_cost_usd(unit, state, fuel_price_usd_per_mmbtu) for state in ("hot", "warm", "cold")
+            state: cost.start_cost_usd(unit, state, fuel_price_usd_per_mmbtu, heat_input_multiplier)
+            for state in ("hot", "warm", "cold")
         },
         unit_id=unit.id,
         local_date=local_date,

@@ -65,3 +65,28 @@ def delivered_gas_price_usd_per_mmbtu(
     """
     adder = float(basis_adder_usd_per_mmbtu_by_month[gas_day.month])
     return index_price_usd_per_mmbtu + adder, adder
+
+
+class OilIndexPrices:
+    """Daily No. 2 New York Harbor index, $/bbl, with the same last-published-price rule as gas."""
+
+    PRODUCT = "NO2_NY_HARBOR"
+
+    def __init__(self, table: pd.DataFrame, max_staleness_days: int) -> None:
+        rows = table[table["product"] == self.PRODUCT].sort_values("date")
+        self._max_staleness = timedelta(days=max_staleness_days)
+        self._dates: list[date] = rows["date"].tolist()
+        self._prices: list[float] = rows["price_usd_per_bbl"].tolist()
+        self._source_ids: list[str] = rows["source_id"].tolist()
+
+    def on(self, day: date) -> tuple[float, str]:
+        """(index price in $/bbl, row ref) applying to `day`."""
+        index = pd.Index(self._dates).searchsorted(day, side="right") - 1
+        if index < 0:
+            raise MissingPriceError(f"no {self.PRODUCT} oil price on or before {day}")
+        published = self._dates[index]
+        if day - published > self._max_staleness:
+            raise MissingPriceError(
+                f"latest {self.PRODUCT} oil price before {day} is {published}, older than {self._max_staleness.days} days"
+            )
+        return float(self._prices[index]), f"{self._source_ids[index]}:{self.PRODUCT}:{published.isoformat()}"

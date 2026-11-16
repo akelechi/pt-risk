@@ -83,9 +83,18 @@ function NodeBox({ node, hour }: { node: FlowNode; hour: HourView | null }) {
         />
       ))}
       {isPlant && (
-        // inventory gauge: an empty outline until the engine supplies a level (milestone 4)
-        <rect x={node.x + 12} y={node.y + 172} width={node.width - 24} height={8} rx={1} className="gauge" />
+        // inventory gauge: outline = tank capacity, fill = the engine's fill fraction
+        <g>
+          <rect x={node.x + 12} y={node.y + 172} width={node.width - 24} height={8} rx={1} className="gauge" />
+          {hour?.oil_inventory_fill_fraction != null && (
+            <rect
+              x={node.x + 12} y={node.y + 172} height={8} rx={1} className="gauge-fill"
+              width={(node.width - 24) * Math.max(0, Math.min(1, hour.oil_inventory_fill_fraction))}
+            />
+          )}
+        </g>
       )}
+      {isPlant && <FuelSwitch node={node} hour={hour} />}
     </g>
   );
 }
@@ -124,9 +133,40 @@ function PlantState({ node, hour }: { node: FlowNode; hour: HourView | null }) {
   );
 }
 
-function Arrow({ arrow, hour }: { arrow: FlowArrow; hour: HourView | null }) {
+/**
+ * Fuel switch indicator: which fuel the unit is burning this hour. Flame = gas, drop = oil;
+ * the one in use is filled and bold, so it reads without colour.
+ */
+function FuelSwitch({ node, hour }: { node: FlowNode; hour: HourView | null }) {
+  const fuels: { name: "gas" | "oil"; shape: ReactNode }[] = [
+    { name: "gas", shape: <path d="M0 -6 C4 -2 5 1 5 3 A5 5 0 0 1 -5 3 C-5 1 -4 -2 0 -6 Z" /> },
+    { name: "oil", shape: <rect x={-5} y={-5} width={10} height={10} rx={5} /> },
+  ];
   return (
-    <g role="img" aria-label={describeArrow(arrow, hour)} className={`arrow ${arrow.kind}`}>
+    <g className="fuel-switch">
+      <text x={node.x + 12} y={node.y + 200} className="state-name">
+        FUEL
+      </text>
+      {fuels.map((item, index) => (
+        <g key={item.name} transform={`translate(${node.x + 58 + index * 52} ${node.y + 196})`}
+          className={`state fuel-${item.name}${hour?.fuel === item.name ? " active" : ""}`}>
+          {item.shape}
+          <text x={10} y={4} className="state-name">
+            {item.name.toUpperCase()}
+          </text>
+        </g>
+      ))}
+    </g>
+  );
+}
+
+const SUPPLY_FUEL: Record<string, "gas" | "oil"> = { gas_supply: "gas", oil_supply: "oil" };
+
+function Arrow({ arrow, hour }: { arrow: FlowArrow; hour: HourView | null }) {
+  const supplies = SUPPLY_FUEL[arrow.id];
+  const burning = supplies !== undefined && hour?.fuel ? (hour.fuel === supplies ? " burning" : " idle") : "";
+  return (
+    <g role="img" aria-label={describeArrow(arrow, hour)} className={`arrow ${arrow.kind}${burning}`}>
       <path d={arrow.path} className="arrow-line" markerEnd={`url(#head-${arrow.kind})`} />
       {arrow.figures.map((item, index) => (
         <FigureText

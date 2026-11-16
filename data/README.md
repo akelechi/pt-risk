@@ -17,6 +17,7 @@ All files below were retrieved 2026-11-16 03:47-03:48 UTC.
 | `nyiso/rtlbmp_zone/YYYYMM01rtlbmp_zone_csv.zip` | 12 | `http://mis.nyiso.com/public/csv/rtlbmp/YYYYMM01rtlbmp_zone_csv.zip` | NYISO public market data |
 | `nyiso/generator.csv` | 1 | `http://mis.nyiso.com/public/csv/generator/generator.csv` | NYISO public market data |
 | `eia/RNGWHHDd.xls` | 1 | `https://www.eia.gov/dnav/ng/hist_xls/RNGWHHDd.xls` | U.S. EIA, public domain |
+| `eia/EER_EPD2F_PF4_Y35NY_DPGd.xls` | 1 | `https://www.eia.gov/dnav/pet/hist_xls/EER_EPD2F_PF4_Y35NY_DPGd.xls` (New York Harbor No. 2 heating oil spot, daily; retrieved 2026-11-16; curated as `oil_price`) | U.S. EIA, public domain |
 | `eia/eia8602024.zip` | 1 | `https://www.eia.gov/electricity/data/eia860/archive/xls/eia8602024.zip` | U.S. EIA, public domain |
 | `eia/f923_2024.zip` | 1 | `https://www.eia.gov/electricity/data/eia923/archive/xls/f923_2024.zip` | U.S. EIA, public domain |
 

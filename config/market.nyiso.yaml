@@ -60,6 +60,12 @@ sources:
     url: "https://www.eia.gov/dnav/ng/hist_xls/RNGWHHDd.xls"
     cadence: once
     raw_path: "eia/RNGWHHDd.xls"
+  # New York Harbor No. 2 heating oil spot, $/gal, daily. EIA publishes no daily price for
+  # No. 6 residual oil; this is the public distillate proxy it is scaled from (Q-039).
+  oil_no2_ny_harbor:
+    url: "https://www.eia.gov/dnav/pet/hist_xls/EER_EPD2F_PF4_Y35NY_DPGd.xls"
+    cadence: once
+    raw_path: "eia/EER_EPD2F_PF4_Y35NY_DPGd.xls"
   eia860:
     url: "https://www.eia.gov/electricity/data/eia860/archive/xls/eia8602024.zip"
     cadence: once

@@ -1,0 +1,22 @@
+# Milestone 4: dual fuel on top of milestone 3 (DP commitment, RT settlement, seeded outages).
+# Each day the plant burns the cheaper of delivered gas and tank oil, if oil is available.
+# Compare with scenario.m3.yaml (same month and seed, gas only) for the margin oil captures.
+name: m4_jan2025_u1
+start_date: 2025-01-01   # first local day, inclusive
+end_date: 2025-01-31     # last local day, inclusive
+plant_config: config/plant.roseton.yaml
+market_config: config/market.nyiso.yaml
+unit_ids: [U1]
+# Hours each unit has been offline at the first hour of the run (168 = cold). Q-026.
+initial_hours_offline_h: 168
+modules:
+  dispatch: true
+  dp_commitment: true
+  rt_settlement: true
+  outages: true
+  dual_fuel: true
+  gas_basis: false
+  capacity: false
+  hedges: false
+  simulation: false
+seed: 20250101

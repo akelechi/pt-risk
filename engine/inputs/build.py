@@ -16,7 +16,7 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from engine.contracts import GasPriceRow, LbmpDaRow, LbmpRtRow
+from engine.contracts import GasPriceRow, OilPriceRow, LbmpDaRow, LbmpRtRow
 from engine.inputs import eia, nyiso, store
 from engine.plant.params import load_plant
 
@@ -97,6 +97,11 @@ def build(root: Path = REPO_ROOT) -> dict:
         henry_file, window["start"] - timedelta(days=market["gas_lookback_days"]), window["end"]
     )
     store.validate_rows(tables["gas_price"], GasPriceRow)
+    (no2_file,) = raw["oil_no2_ny_harbor"]
+    tables["oil_price"] = eia.load_no2_ny_harbor(
+        no2_file, window["start"] - timedelta(days=market["gas_lookback_days"]), window["end"]
+    )
+    store.validate_rows(tables["oil_price"], OilPriceRow)
 
     (eia860_file,) = raw["eia860"]
     (eia923_file,) = raw["eia923"]

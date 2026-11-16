@@ -84,6 +84,8 @@ class FuelParams(_Strict):
     oil_heat_rate_penalty_fraction: Param[float]
     oil_tank_capacity_bbl: Param[float]
     oil_mmbtu_per_bbl: Param[float]
+    oil_price_ratio_to_no2_distillate: Param[float]
+    oil_target_inventory_bbl: Param[float]
     oil_permit_hours_per_year: Param[float]
     barge_lead_days: Param[int]
     transport_demand_charge_usd_per_mmbtu_day: Param[float]
@@ -92,6 +94,12 @@ class FuelParams(_Strict):
     def _check_months(self) -> "FuelParams":
         if sorted(self.gas_basis_adder_usd_per_mmbtu_by_month.value) != list(range(1, 13)):
             raise ValueError("gas_basis_adder_usd_per_mmbtu_by_month needs exactly months 1..12")
+        if not 0 <= self.oil_target_inventory_bbl.value <= self.oil_tank_capacity_bbl.value:
+            raise ValueError("oil_target_inventory_bbl must be between 0 and oil_tank_capacity_bbl")
+        if self.oil_price_ratio_to_no2_distillate.value <= 0 or self.oil_mmbtu_per_bbl.value <= 0:
+            raise ValueError("oil price ratio and oil heat content must be positive")
+        if self.oil_heat_rate_penalty_fraction.value < 0 or self.barge_lead_days.value < 0:
+            raise ValueError("oil heat-rate penalty and barge lead days cannot be negative")
         return self
 
 

@@ -1,6 +1,14 @@
 {
   "files": [
     {
+      "raw_path": "eia/EER_EPD2F_PF4_Y35NY_DPGd.xls",
+      "source": "oil_no2_ny_harbor",
+      "url": "https://www.eia.gov/dnav/pet/hist_xls/EER_EPD2F_PF4_Y35NY_DPGd.xls",
+      "sha256": "d9a8feed788524242afb9ed01b7d55a4106de83c57918380db958865911f6eb4",
+      "bytes": 501760,
+      "retrieved_at": "2026-11-16T08:05:27Z"
+    },
+    {
       "raw_path": "eia/RNGWHHDd.xls",
       "source": "henry_hub",
       "url": "https://www.eia.gov/dnav/ng/hist_xls/RNGWHHDd.xls",

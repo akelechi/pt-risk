@@ -147,7 +147,8 @@ def start_spec(unit: UnitParams, state: ThermalState):
     return getattr(unit.start, state).value
 
 
-def start_cost_usd(unit: UnitParams, state: ThermalState, fuel_price_usd_per_mmbtu: float) -> float:
-    """Cost of one start: start fuel x fuel price + other start cost, USD (brief §4)."""
+def start_cost_usd(unit: UnitParams, state: ThermalState, fuel_price_usd_per_mmbtu: float,
+                   heat_input_multiplier: float = 1.0) -> float:
+    """Cost of one start: start fuel x heat multiplier x fuel price + other start cost, USD (brief §4)."""
     spec = start_spec(unit, state)
-    return spec.start_fuel_mmbtu * fuel_price_usd_per_mmbtu + spec.start_other_cost_usd
+    return spec.start_fuel_mmbtu * heat_input_multiplier * fuel_price_usd_per_mmbtu + spec.start_other_cost_usd

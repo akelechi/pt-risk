@@ -48,6 +48,11 @@ export function FlowExplorer({ hours, solver, summaries, initialIndex = 0 }: {
       <FlowDiagram hour={hour} />
       <p className="decision">
         <span className="decision-label">{hour.forced_outage ? "Day-ahead plan" : "Decision"}</span> {hour.reason}
+        {hour.oil_price_usd_per_mmbtu !== null && (
+          <span className="decision-fuel">
+            <span className="decision-label">Fuel today</span> {hour.fuel_reason}
+          </span>
+        )}
         {hour.forced_outage && (
           <span className="decision-outage">
             <span className="decision-label">Real time</span> forced outage: nothing available, the schedule is bought back at the RT LBMP
