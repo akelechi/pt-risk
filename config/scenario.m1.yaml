@@ -1,0 +1,20 @@
+# Milestone 1: price-taker dispatch, gas only, DA only, one unit, one month.
+name: m1_jan2025_u1
+start_date: 2025-01-01   # first local day, inclusive
+end_date: 2025-01-31     # last local day, inclusive
+plant_config: config/plant.roseton.yaml
+market_config: config/market.nyiso.yaml
+unit_ids: [U1]
+# Hours each unit has been offline at the first hour of the run (168 = cold). Q-026.
+initial_hours_offline_h: 168
+modules:
+  dispatch: true
+  dp_commitment: false
+  rt_settlement: false
+  outages: false
+  dual_fuel: false
+  gas_basis: false
+  capacity: false
+  hedges: false
+  simulation: false
+seed: 20250101

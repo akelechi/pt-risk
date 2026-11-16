@@ -188,6 +188,79 @@ class Decision(Stamped):
     reason: str = Field(min_length=1)  # "spread 41.2 $/MWh > 0 and min-run binding"
 
 
+# ------------------------------------------------------------------ offers & prices
+
+
+class OfferBlock(BaseModel):
+    """One step of the convexified offer curve: MW range and its offer price."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    mw_from: float = Field(ge=0)
+    mw_to: float = Field(gt=0)
+    incremental_heat_rate_mmbtu_per_mwh: float = Field(gt=0)
+    price_usd_per_mwh: float
+
+
+class Offer(BaseModel):
+    """A unit's DA offer for one local day: monotone non-decreasing steps from 0 MW."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    unit_id: str
+    local_date: Date
+    fuel: Fuel
+    fuel_price_usd_per_mmbtu: float
+    fuel_price_ref: str  # id of the gas/oil price row used
+    available_mw: float = Field(ge=0)
+    blocks: list[OfferBlock]
+
+    @model_validator(mode="after")
+    def _check_blocks(self) -> "Offer":
+        previous_to, previous_price = 0.0, float("-inf")
+        for block in self.blocks:
+            if abs(block.mw_from - previous_to) > 1e-6 or block.mw_to <= block.mw_from:
+                raise ValueError("offer blocks must be contiguous from 0 MW")
+            if block.price_usd_per_mwh < previous_price - 1e-9:
+                raise ValueError("offer prices must be non-decreasing")
+            previous_to, previous_price = block.mw_to, block.price_usd_per_mwh
+        if self.blocks and previous_to > self.available_mw + 1e-6:
+            raise ValueError("offer exceeds available_mw")
+        return self
+
+
+class HourPrice(Stamped):
+    """The DA price one unit sees in one hour, with the id of the row it came from."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    da_lbmp_usd_per_mwh: float
+    da_lbmp_ref: str
+
+
+class DayPrices(BaseModel):
+    """What the commitment solver sees for one unit and local day (23, 24 or 25 hours)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    unit_id: str
+    local_date: Date
+    hours: list[HourPrice] = Field(min_length=23, max_length=25)
+
+
+class HourInputs(Stamped):
+    """Exogenous inputs to `transition()` for one unit and hour."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    unit_id: str
+    da_lbmp_usd_per_mwh: float
+    da_lbmp_ref: str
+    gas_price_usd_per_mmbtu: float
+    gas_price_ref: str
+    available_mw: float = Field(ge=0)
+
+
 # -------------------------------------------------------------------------- ledger
 
 LedgerLine = Literal[
@@ -287,6 +360,7 @@ class Scenario(BaseModel):
     plant_config: str  # path relative to the repository root
     market_config: str
     unit_ids: list[str] = Field(min_length=1)
+    initial_hours_offline_h: int = Field(ge=0)  # each unit starts the run off, this long
     modules: Modules = Modules()
     seed: int
 
@@ -336,6 +410,8 @@ class RunMeta(BaseModel):
     inputs: list[TableSummary]
     invariants: list[InvariantResult]
     assumed_parameter_count: int
+    ledger_totals_usd: dict[str, float]  # sum of amount_usd by ledger line (view, not stored twice)
+    energy_margin_usd: float  # DA + RT energy revenue less fuel, start, no-load, VOM, emissions
 
 
 class RunResult(BaseModel):
@@ -344,6 +420,45 @@ class RunResult(BaseModel):
     meta: RunMeta
     ledger: list[LedgerEntry]
     states: list[PlantState]
+    decisions: list[Decision]
+    offers: list[Offer]
+    hour_inputs: list[HourInputs]
+
+
+class RunSummary(BaseModel):
+    """One stored run, for pickers. Response item of GET /runs."""
+
+    run_id: str
+    scenario_name: str
+    start_date: Date
+    end_date: Date
+    unit_ids: list[str]
+    ledger_entry_count: int
+    energy_margin_usd: float
+
+
+class HourFlow(Stamped):
+    """The flow-diagram payload for one unit and hour: every arrow's value, the ledger
+    entries booked in the hour, and the input rows behind them (`ref`)."""
+
+    unit_id: str
+    state: PlantState
+    decision: Decision
+    da_lbmp_usd_per_mwh: float
+    offered_mw: float
+    offer_min_price_usd_per_mwh: float | None  # None when nothing is offered
+    offer_max_price_usd_per_mwh: float | None
+    offer_blocks: list[OfferBlock]
+    da_schedule_mw: float
+    output_mw: float
+    gas_price_usd_per_mmbtu: float
+    gas_burn_mmbtu: float
+    da_energy_rev_usd: float
+    fuel_cost_usd: float  # negative: a cost
+    vom_usd: float  # negative: a cost
+    hour_energy_margin_usd: float
+    entries: list[LedgerEntry]
+    input_refs: dict[str, str]  # input name -> row id, e.g. {"lbmp_da": "...", "gas_price": "..."}
 
 
 class RunCreated(BaseModel):

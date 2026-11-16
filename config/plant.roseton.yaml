@@ -13,14 +13,16 @@ eia_plant_code: 8006
 
 units:
   - id: U1
-    pmax_mw:              {value: 600, unit: MW, status: assumed, source: "EIA-860 nameplate ~600; confirm net", as_of: 2026-11-15}
-    pmin_mw:              {value: 150, unit: MW, status: assumed, source: "typical 25% of Pmax for 1970s steam", as_of: 2026-11-15}
+    pmax_mw:              {value: 614.8, unit: MW, status: public, source: "EIA-860 2024, generator 1, net summer capacity (nameplate 621)", as_of: 2026-11-16}
+    pmin_mw:              {value: 140, unit: MW, status: public, source: "EIA-860 2024, generator 1, minimum load", as_of: 2026-11-16}
+    # Each point is the incremental heat rate of the block ENDING at that output (Q-016);
+    # the first point prices the block from 0 to Pmin. Break points follow Pmin/Pmax.
     heat_rate_curve:
       value:
-        - {output_mw: 150, incremental_heat_rate_mmbtu_per_mwh: 11.4}
+        - {output_mw: 140, incremental_heat_rate_mmbtu_per_mwh: 11.4}
         - {output_mw: 300, incremental_heat_rate_mmbtu_per_mwh: 10.1}
         - {output_mw: 450, incremental_heat_rate_mmbtu_per_mwh: 10.0}
-        - {output_mw: 600, incremental_heat_rate_mmbtu_per_mwh: 10.8}
+        - {output_mw: 614.8, incremental_heat_rate_mmbtu_per_mwh: 10.8}
       unit: MMBtu/MWh
       status: assumed
       source: "shape typical; level from EIA-923 annual avg ~10.5"
@@ -52,14 +54,14 @@ units:
     efor:                 {value: 0.10, unit: fraction, status: assumed, source: "old steam typical", as_of: 2026-11-15}
 
   - id: U2
-    pmax_mw:              {value: 600, unit: MW, status: assumed, source: "EIA-860 nameplate ~600; confirm net", as_of: 2026-11-15}
-    pmin_mw:              {value: 150, unit: MW, status: assumed, source: "typical 25% of Pmax for 1970s steam", as_of: 2026-11-15}
+    pmax_mw:              {value: 607.7, unit: MW, status: public, source: "EIA-860 2024, generator 2, net summer capacity (nameplate 621)", as_of: 2026-11-16}
+    pmin_mw:              {value: 140, unit: MW, status: public, source: "EIA-860 2024, generator 2, minimum load", as_of: 2026-11-16}
     heat_rate_curve:
       value:
-        - {output_mw: 150, incremental_heat_rate_mmbtu_per_mwh: 11.4}
+        - {output_mw: 140, incremental_heat_rate_mmbtu_per_mwh: 11.4}
         - {output_mw: 300, incremental_heat_rate_mmbtu_per_mwh: 10.1}
         - {output_mw: 450, incremental_heat_rate_mmbtu_per_mwh: 10.0}
-        - {output_mw: 600, incremental_heat_rate_mmbtu_per_mwh: 10.8}
+        - {output_mw: 607.7, incremental_heat_rate_mmbtu_per_mwh: 10.8}
       unit: MMBtu/MWh
       status: assumed
       source: "shape typical; level from EIA-923 annual avg ~10.5; assumed identical to U1"

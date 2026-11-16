@@ -5,6 +5,8 @@ end_date: 2025-12-31     # last local day, inclusive
 plant_config: config/plant.roseton.yaml
 market_config: config/market.nyiso.yaml
 unit_ids: [U1, U2]
+# Hours each unit has been offline at the first hour of the run (168 = cold). Q-026.
+initial_hours_offline_h: 168
 modules:
   dispatch: false
   dp_commitment: false

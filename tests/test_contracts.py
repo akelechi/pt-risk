@@ -183,7 +183,7 @@ def test_real_plant_config_loads_with_full_provenance():
     assert all(leaf.source and leaf.unit and leaf.status for leaf in leaves)
     counts = status_counts(plant)
     assert sum(counts.values()) == len(leaves)
-    assert counts == {"public": 3, "assumed": 33, "confirmed": 0}
+    assert counts == {"public": 7, "assumed": 29, "confirmed": 0}
     assert "units.U1.pmax_mw" in {leaf.path for leaf in leaves}
 
 
@@ -214,6 +214,7 @@ def test_loader_rejects_misspelled_keys_and_bad_structure(plant_raw: dict):
 
     inverted = copy.deepcopy(plant_raw)
     inverted["units"][0]["pmin_mw"]["value"] = 700
+    inverted["units"][0]["heat_rate_curve"]["value"][0]["output_mw"] = 700
     with pytest.raises(ValidationError, match="pmin_mw < pmax_mw"):
         parse_plant(inverted)
 

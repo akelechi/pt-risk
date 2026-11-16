@@ -116,9 +116,9 @@ def test_time_integrity_invariant_fails_on_short_or_broken_tables(timezone, mark
 
 def test_provenance_invariant():
     raw = yaml.safe_load((REPO_ROOT / "config" / "plant.roseton.yaml").read_text())
-    assert reconcile.check_provenance(raw, 36, 33).status == "pass"
+    assert reconcile.check_provenance(raw, 36, 29).status == "pass"
     del raw["capacity"]["ucap_mw"]["source"]
-    failed = reconcile.check_provenance(raw, 36, 33)
+    failed = reconcile.check_provenance(raw, 36, 29)
     assert failed.status == "fail" and "capacity.ucap_mw: leaf is missing `source`" in failed.detail
 
 

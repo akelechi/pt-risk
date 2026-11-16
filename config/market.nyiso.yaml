@@ -20,6 +20,9 @@ data_window:
 # Henry Hub is kept from this many days before the window so that weekends and
 # holidays at the window start have a prior published price (Q-012).
 gas_lookback_days: 31
+# A gas day with no published price uses the last published price on or before it (Q-012),
+# but never one older than this many days.
+gas_price_max_staleness_days: 7
 
 # LBMP = energy + losses - congestion in NYISO's published sign convention (Q-004),
 # so energy = lbmp - loss + congestion. The energy (reference-bus) price is the same at
@@ -27,6 +30,9 @@ gas_lookback_days: 31
 # rounded to the cent (+/-0.005), so the energy recovered at two locations can differ by
 # up to 2 x 3 x 0.005 = 0.03 $/MWh. A wrong congestion sign shows up as dollars, not cents.
 energy_identity_tolerance_usd_per_mwh: 0.031
+
+# Offer prices are stated to the cent per MWh (Q-027).
+offer_price_decimals: 2
 
 # Public sources. {yyyymm} is substituted per month of the data window.
 sources:

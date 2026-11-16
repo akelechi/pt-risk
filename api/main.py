@@ -8,12 +8,14 @@ runs/{run_id}/, and serves slices of it. Run with:
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from engine.contracts import (
+    HourFlow,
     LedgerEntry,
     LedgerRollup,
     ParamsResponse,
@@ -21,8 +23,10 @@ from engine.contracts import (
     RunCreated,
     RunMeta,
     RunResult,
+    RunSummary,
     Scenario,
 )
+from engine.flow import hour_flow, hour_flows
 from engine.ledger.ledger import Grain, rollup
 from engine.plant.params import ProvenanceError, flatten_leaves, load_plant, status_counts
 from engine.run import REPO_ROOT, run
@@ -65,13 +69,61 @@ def create_app(root: Path = REPO_ROOT) -> FastAPI:
         (directory / RESULT_FILE).write_text(result.model_dump_json())
         return RunCreated(run_id=result.meta.run_id)
 
-    @app.get("/runs", response_model=list[str])
-    def list_runs() -> list[str]:
-        """Ids of stored runs, sorted."""
+    @app.get("/runs", response_model=list[RunSummary])
+    def list_runs() -> list[RunSummary]:
+        """Stored runs, sorted by run id."""
         directory = root / RUNS_DIR
         if not directory.exists():
             return []
-        return sorted(path.parent.name for path in directory.glob(f"*/{RESULT_FILE}"))
+        summaries = []
+        for path in sorted(directory.glob(f"*/{RESULT_FILE}")):
+            meta = RunResult.model_validate_json(path.read_text()).meta
+            summaries.append(
+                RunSummary(
+                    run_id=meta.run_id,
+                    scenario_name=meta.scenario.name,
+                    start_date=meta.scenario.start_date,
+                    end_date=meta.scenario.end_date,
+                    unit_ids=meta.scenario.unit_ids,
+                    ledger_entry_count=meta.ledger_entry_count,
+                    energy_margin_usd=meta.energy_margin_usd,
+                )
+            )
+        return summaries
+
+    def pick_unit(result: RunResult, unit_id: str | None) -> str:
+        units = result.meta.scenario.unit_ids
+        if unit_id is None:
+            if len(units) != 1:
+                raise HTTPException(status_code=422, detail=f"run has units {units}; pass unit_id")
+            return units[0]
+        if unit_id not in units:
+            raise HTTPException(status_code=404, detail=f"run has no unit {unit_id!r}")
+        return unit_id
+
+    @app.get("/runs/{run_id}/flow", response_model=list[HourFlow])
+    def get_flow(run_id: str, unit_id: str | None = None, month: str | None = None) -> list[HourFlow]:
+        """Flow-diagram payloads for every hour of one unit, optionally one local month (YYYY-MM)."""
+        result = load_result(run_id)
+        return hour_flows(result, unit_id=pick_unit(result, unit_id), month=month)
+
+    @app.get("/runs/{run_id}/hour/{ts}", response_model=HourFlow)
+    def get_hour(run_id: str, ts: str, unit_id: str | None = None) -> HourFlow:
+        """Flow-diagram payload for one hour: every arrow's value plus the rows behind it.
+
+        `ts` is an ISO timestamp with a UTC offset, e.g. 2025-01-15T17:00:00Z.
+        """
+        try:
+            stamp = datetime.fromisoformat(ts)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=f"bad timestamp {ts!r}") from error
+        if stamp.tzinfo is None or stamp.utcoffset() is None:
+            raise HTTPException(status_code=422, detail="timestamp needs a UTC offset (e.g. ...Z)")
+        result = load_result(run_id)
+        flow = hour_flow(result, pick_unit(result, unit_id), stamp)
+        if flow is None:
+            raise HTTPException(status_code=404, detail=f"run has no hour {ts}")
+        return flow
 
     @app.get("/runs/{run_id}", response_model=RunMeta)
     def get_run(run_id: str) -> RunMeta:
