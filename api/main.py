@@ -118,6 +118,7 @@ def create_app(root: Path = REPO_ROOT) -> FastAPI:
                     unit_ids=meta.scenario.unit_ids,
                     ledger_entry_count=meta.ledger_entry_count,
                     energy_margin_usd=meta.energy_margin_usd,
+                    modules_on=[name for name, on in meta.scenario.modules.model_dump().items() if on],
                 )
             )
         return summaries

@@ -534,6 +534,7 @@ class RunSummary(BaseModel):
     unit_ids: list[str]
     ledger_entry_count: int
     energy_margin_usd: float
+    modules_on: list[str] = []  # engine modules the scenario switched on
 
 
 class HourFlow(Stamped):

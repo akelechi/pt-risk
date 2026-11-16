@@ -1046,6 +1046,14 @@
             "title": "Ledger Entry Count",
             "type": "integer"
           },
+          "modules_on": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Modules On",
+            "type": "array"
+          },
           "run_id": {
             "title": "Run Id",
             "type": "string"

@@ -10,10 +10,17 @@ export const dynamic = "force-dynamic";
 
 type Search = { run?: string; unit?: string; hour?: string };
 
-/** Which run to show: the one named in the URL, else the first stored run that booked anything. */
+/** Stored runs that booked anything, the one modelling the most first. */
+function runsWithLedger(runs: RunSummary[]): RunSummary[] {
+  return runs
+    .filter((run) => run.ledger_entry_count > 0)
+    .sort((a, b) => (b.modules_on?.length ?? 0) - (a.modules_on?.length ?? 0) || a.scenario_name.localeCompare(b.scenario_name));
+}
+
+/** Which run to show: the one named in the URL, else the stored run that models the most. */
 function chooseRun(runs: RunSummary[], requested: string | undefined): RunSummary | null {
   if (requested) return runs.find((run) => run.run_id === requested) ?? null;
-  return runs.find((run) => run.ledger_entry_count > 0) ?? null;
+  return runsWithLedger(runs)[0] ?? null;
 }
 
 /** What the loaded run models, from the modules its scenario switched on. */
@@ -54,9 +61,7 @@ export default async function FlowPage({ searchParams }: { searchParams: Promise
                 <dt>Scenario</dt>
                 <dd>
                   {runs.online &&
-                    runs.data
-                      .filter((item) => item.ledger_entry_count > 0)
-                      .map((item) => (
+                    runsWithLedger(runs.data).map((item) => (
                         <Link key={item.run_id} href={`/?run=${item.run_id}`} className={item.run_id === run.run_id ? "pick current" : "pick"} aria-current={item.run_id === run.run_id}>
                           {item.scenario_name}
                         </Link>

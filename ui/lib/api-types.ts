@@ -608,6 +608,11 @@ export interface components {
             energy_margin_usd: number;
             /** Ledger Entry Count */
             ledger_entry_count: number;
+            /**
+             * Modules On
+             * @default []
+             */
+            modules_on: string[];
             /** Run Id */
             run_id: string;
             /** Scenario Name */
