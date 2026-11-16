@@ -1,0 +1,376 @@
+/* Control-room palette: graphite ground, amber for money, teal for physical quantities.
+   Light mode keeps the same hierarchy on a cool grey ground. */
+:root {
+  color-scheme: dark light;
+  --ground: #14171a;
+  --panel: #1b1f23;
+  --rule: #343b42;
+  --rule-strong: #4b545d;
+  --text: #e4e7ea;
+  --muted: #8d969f;
+  --money: #f0a63a;
+  --physical: #3fc4b2;
+  --focus: #ffffff;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --ground: #e9ecee;
+    --panel: #f6f7f8;
+    --rule: #c3c9ce;
+    --rule-strong: #8f989f;
+    --text: #15191c;
+    --muted: #56606a;
+    --money: #9a5b00;
+    --physical: #08766b;
+    --focus: #15191c;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--font-sans), "IBM Plex Sans", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.num,
+.figure-value,
+.figure-unit {
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ header */
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 24px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--panel);
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.brand-name {
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  font-size: 13px;
+}
+
+.brand-screen {
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.header-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.tag {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px;
+  border: 1px solid var(--rule-strong);
+  font-size: 12px;
+}
+
+.badge-of {
+  color: var(--muted);
+}
+
+/* assumed = hatched square; offline = hollow square. Shape carries the state, not hue alone. */
+.badge-mark {
+  width: 10px;
+  height: 10px;
+  border: 1px solid currentColor;
+}
+
+.badge-assumed {
+  border-color: var(--money);
+}
+
+.badge-assumed .badge-mark {
+  color: var(--money);
+  background: repeating-linear-gradient(135deg, var(--money) 0 2px, transparent 2px 4px);
+}
+
+.badge-assumed .num {
+  color: var(--money);
+  font-weight: 500;
+}
+
+.badge-offline {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+/* -------------------------------------------------------------------- page */
+
+.page {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 20px 20px 40px;
+}
+
+.page-head h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.page-head p {
+  margin: 4px 0 16px;
+  max-width: 70ch;
+  color: var(--muted);
+}
+
+.flow {
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  padding: 8px 8px 0;
+}
+
+.flow-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ------------------------------------------------------------------- nodes */
+
+.node-box {
+  fill: var(--ground);
+  stroke: var(--rule-strong);
+  stroke-width: 1;
+}
+
+.node-plant .node-box {
+  stroke: var(--text);
+  stroke-width: 1.5;
+}
+
+.node-rule {
+  stroke: var(--rule);
+}
+
+.node-icon {
+  color: var(--muted);
+}
+
+.node-title {
+  fill: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.node-subtitle {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.state > rect,
+.state > path,
+.state > circle {
+  fill: none;
+  stroke: var(--rule-strong);
+  stroke-width: 1.2;
+}
+
+.state-name {
+  fill: var(--muted);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+}
+
+.gauge {
+  fill: none;
+  stroke: var(--rule-strong);
+  stroke-dasharray: 2 3;
+}
+
+/* ------------------------------------------------------------------ arrows */
+
+.arrow-line {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.arrow.money .arrow-line,
+.legend-money {
+  stroke: var(--money);
+  stroke-dasharray: 6 4;
+}
+
+.arrow.physical .arrow-line,
+.legend-physical {
+  stroke: var(--physical);
+}
+
+.arrow-head.money {
+  fill: var(--money);
+}
+
+.arrow-head.physical {
+  fill: var(--physical);
+}
+
+.figure {
+  font-size: 11.5px;
+}
+
+.figure-label {
+  fill: var(--muted);
+}
+
+.figure-unit {
+  fill: var(--muted);
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.figure-value {
+  font-weight: 500;
+}
+
+.figure-value.money {
+  fill: var(--money);
+  color: var(--money);
+}
+
+.figure-value.physical {
+  fill: var(--physical);
+  color: var(--physical);
+}
+
+/* ------------------------------------------------------------------ legend */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 28px;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-top: 1px solid var(--rule);
+  list-style: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend .figure-value {
+  color: var(--text);
+}
+
+/* ------------------------------------------------- narrow: stack the flow */
+
+.flow-stack {
+  display: none;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+}
+
+.stack-item {
+  padding: 10px 10px 10px 12px;
+  border-left: 3px solid var(--physical);
+  border-bottom: 1px solid var(--rule);
+}
+
+.stack-item.money {
+  border-left: 3px dashed var(--money);
+}
+
+.stack-route {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.stack-arrow {
+  color: var(--muted);
+}
+
+.stack-item dl {
+  margin: 6px 0 0;
+}
+
+.stack-figure {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.stack-figure dt {
+  color: var(--muted);
+}
+
+.stack-figure dd {
+  margin: 0;
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .flow-svg {
+    display: none;
+  }
+
+  .flow-stack {
+    display: block;
+  }
+
+  .header {
+    padding: 10px 14px;
+  }
+
+  .page {
+    padding: 14px 12px 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
