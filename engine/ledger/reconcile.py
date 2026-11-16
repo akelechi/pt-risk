@@ -14,8 +14,9 @@ from typing import Any, Iterable
 
 import pandas as pd
 
-from engine.contracts import HourInputs, InvariantResult, LedgerEntry, PlantState
+from engine.contracts import CommitmentBound, HourInputs, InvariantResult, LedgerEntry, PlantState
 from engine.inputs.timeutil import time_integrity_problems
+from engine.ledger.ledger import round_to_cent_usd
 from engine.plant import cost
 from engine.plant.params import UnitParams, provenance_problems
 
@@ -32,6 +33,7 @@ INVARIANT_NAMES = {
 PENDING_MILESTONE = {1: 3, 2: 4, 3: 1, 4: 1, 5: 2}
 _MAX_PROBLEMS_SHOWN = 5
 HALF_CENT_USD = 0.005 + 1e-9
+EXACT_CENT_TOLERANCE_USD = 0.001  # two sums of whole cents either agree or differ by a cent or more
 FUEL_SIDE_LINES = ("fuel_cost_gas", "fuel_cost_oil", "start_cost", "no_load_cost")
 ENERGY_REVENUE_LINES = ("da_energy_rev", "rt_balancing")
 
@@ -81,41 +83,93 @@ def check_cost_identity(
     entries: list[LedgerEntry],
     hour_inputs: list[HourInputs],
     units: dict[str, UnitParams],
+    commitment_costs: bool = False,
+    initial_hours_offline_h: int = 0,
 ) -> InvariantResult:
     """Invariant 3: fuel_cost_* + start_cost + no_load_cost = MMBtu x price by fuel, to the cent.
 
-    Recomputed independently of the ledger: MMBtu from each state's output through the
-    true heat-rate curve, price from the hour's inputs. Milestone 1 burns gas only and has
-    no start or no-load fuel, so every running hour must carry exactly that fuel cost and
-    every idle hour none.
+    Recomputed independently of the ledger. MMBtu per hour = the state's output through
+    the true heat-rate curve; with `commitment_costs`, plus no-load fuel in every hour on
+    line and start fuel in the hour of a start. Price from the hour's inputs. The other
+    (non-fuel) start cost is added per start. A start is an off-to-on change between
+    consecutive states of a unit; its thermal state follows the hours offline before it
+    (`initial_hours_offline_h` before the first hour of the run). Gas only so far.
     """
     prices = {(item.unit_id, item.ts_utc): item.gas_price_usd_per_mmbtu for item in hour_inputs}
     booked = _booked_by_hour(entries, FUEL_SIDE_LINES)
     problems: list[str] = []
     total_mmbtu = 0.0
     total_usd = 0.0
+    starts = 0
+    previous: dict[str, PlantState] = {}
     for state in states:
         key = (state.unit_id, state.ts_utc)
+        unit = units[state.unit_id]
         amounts = booked.pop(key, [])
+        before = previous.get(state.unit_id)
+        previous[state.unit_id] = state
         if state.output_mw > 0 and state.fuel != "gas":
             problems.append(f"{state.unit_id} {state.ts_utc}: running on {state.fuel}, not modelled yet")
             continue
-        mmbtu = cost.fuel_burn_mmbtu_per_h(units[state.unit_id], state.output_mw)
-        expected_usd = -mmbtu * prices[key]
-        if abs(sum(amounts) - expected_usd) > HALF_CENT_USD * max(len(amounts), 1):
+        # Each component is a separate ledger line rounded to the cent, so the expected
+        # total is the sum of the rounded components and must match exactly.
+        components_mmbtu = [cost.fuel_burn_mmbtu_per_h(unit, state.output_mw)]
+        other_usd = 0.0
+        if commitment_costs and state.committed:
+            components_mmbtu.append(cost.no_load_fuel_mmbtu_per_h(unit))
+            was_on = before.committed if before is not None else False
+            if not was_on:
+                hours_offline_h = before.hours_in_state_h if before is not None else initial_hours_offline_h
+                spec = cost.start_spec(unit, cost.thermal_state(hours_offline_h, unit))
+                components_mmbtu.append(spec.start_fuel_mmbtu)
+                other_usd = round_to_cent_usd(spec.start_other_cost_usd)
+                starts += 1
+        mmbtu = sum(components_mmbtu)
+        expected_usd = -(sum(round_to_cent_usd(part * prices[key]) for part in components_mmbtu) + other_usd)
+        if abs(sum(amounts) - expected_usd) > EXACT_CENT_TOLERANCE_USD:
             problems.append(
                 f"{state.unit_id} {state.ts_utc}: booked {sum(amounts):.2f}, "
-                f"MMBtu x price = {expected_usd:.2f} ({mmbtu:.3f} MMBtu x {prices[key]:.4f})"
+                f"MMBtu x price + other start cost = {expected_usd:.2f} "
+                f"({mmbtu:.3f} MMBtu x {prices[key]:.4f} + {other_usd:.2f})"
             )
         total_mmbtu += mmbtu
         total_usd += sum(amounts)
     for unit_id, ts_utc in booked:
         problems.append(f"{unit_id} {ts_utc}: fuel-side entries booked in an hour with no state")
+    with_starts = f" incl. no-load and {starts} starts" if commitment_costs else ""
     return _result(
         3,
         problems,
-        f"{len(states)} unit-hours: fuel cost {total_usd:,.2f} USD = {total_mmbtu:,.1f} MMBtu x gas price, "
+        f"{len(states)} unit-hours: fuel-side cost {total_usd:,.2f} USD on {total_mmbtu:,.1f} MMBtu{with_starts}, "
         "each hour to the cent",
+    )
+
+
+def check_margin_bound(bounds: list[CommitmentBound]) -> InvariantResult:
+    """Invariant 5: on every planning day, price-taker-with-constraints <= DP <= unconstrained.
+
+    All three are values of the same planning problem (same horizon, starting state and
+    prices), so the ordering is a property of the solver, not of the month.
+    """
+    tolerance_usd = 0.01
+    problems: list[str] = []
+    for bound in bounds:
+        where = f"{bound.unit_id} {bound.local_date}"
+        if bound.dp_value_usd < bound.price_taker_constrained_value_usd - tolerance_usd:
+            problems.append(
+                f"{where}: DP {bound.dp_value_usd:,.2f} < price-taker with constraints "
+                f"{bound.price_taker_constrained_value_usd:,.2f}"
+            )
+        if bound.dp_value_usd > bound.unconstrained_value_usd + tolerance_usd:
+            problems.append(
+                f"{where}: DP {bound.dp_value_usd:,.2f} > unconstrained {bound.unconstrained_value_usd:,.2f}"
+            )
+    if not bounds:
+        problems.append("no planning days were checked")
+    return _result(
+        5,
+        problems,
+        f"{len(bounds)} unit-days: price-taker with constraints <= DP <= unconstrained on every planning horizon",
     )
 
 

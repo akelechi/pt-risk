@@ -2,7 +2,7 @@ import Link from "next/link";
 import { FlowDiagram } from "@/components/FlowDiagram";
 import { FlowExplorer } from "@/components/FlowExplorer";
 import { Header } from "@/components/Header";
-import { fetchFlow, fetchParams, fetchRun, fetchRuns, toHourView, type RunSummary } from "@/lib/api";
+import { fetchFlow, fetchParams, fetchRun, fetchRuns, toHourView, type RunMeta, type RunSummary } from "@/lib/api";
 import { formatNumber } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +15,19 @@ function chooseRun(runs: RunSummary[], requested: string | undefined): RunSummar
   return runs.find((run) => run.ledger_entry_count > 0) ?? null;
 }
 
+/** What the loaded run models, from the modules its scenario switched on. */
+function scopeTag(meta: RunMeta): string {
+  const modules = meta.scenario.modules;
+  return [
+    modules.dp_commitment ? "DP COMMITMENT" : "PRICE-TAKER",
+    modules.rt_settlement ? "DA + RT" : "DA ONLY",
+    modules.outages ? "SEEDED OUTAGES" : null,
+    modules.dual_fuel ? "GAS + OIL" : "GAS ONLY",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export default async function FlowPage({ searchParams }: { searchParams: Promise<Search> }) {
   const search = await searchParams;
   const [params, runs] = await Promise.all([fetchParams(), fetchRuns()]);
@@ -25,7 +38,7 @@ export default async function FlowPage({ searchParams }: { searchParams: Promise
 
   return (
     <>
-      <Header params={params} screen="Flow" tag="MILESTONE 1 · DA PRICE-TAKER · GAS ONLY" />
+      <Header params={params} screen="Flow" tag={meta?.online ? scopeTag(meta.data) : "NO RUN LOADED"} />
       <main className="page">
         <div className="page-head">
           <p className="eyebrow">Flow</p>
@@ -38,7 +51,16 @@ export default async function FlowPage({ searchParams }: { searchParams: Promise
               </div>
               <div>
                 <dt>Scenario</dt>
-                <dd>{run.scenario_name}</dd>
+                <dd>
+                  {runs.online &&
+                    runs.data
+                      .filter((item) => item.ledger_entry_count > 0)
+                      .map((item) => (
+                        <Link key={item.run_id} href={`/?run=${item.run_id}`} className={item.run_id === run.run_id ? "pick current" : "pick"} aria-current={item.run_id === run.run_id}>
+                          {item.scenario_name}
+                        </Link>
+                      ))}
+                </dd>
               </div>
               <div>
                 <dt>Window</dt>
@@ -84,7 +106,12 @@ export default async function FlowPage({ searchParams }: { searchParams: Promise
           )}
         </div>
         {hours.length > 0 ? (
-          <FlowExplorer hours={hours} initialIndex={Number.parseInt(search.hour ?? "0", 10) || 0} />
+          <FlowExplorer
+            hours={hours}
+            solver={meta?.online ? meta.data.solver : "price_taker"}
+            summaries={meta?.online ? meta.data.solver_comparison : []}
+            initialIndex={Number.parseInt(search.hour ?? "0", 10) || 0}
+          />
         ) : (
           <FlowDiagram hour={null} />
         )}

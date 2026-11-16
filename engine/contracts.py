@@ -174,6 +174,9 @@ class PlantState(Stamped):
     oil_permit_hours_used_ytd_h: float = Field(ge=0)
     available_mw: float = Field(ge=0)  # after derates / outages
     da_schedule_mw: float = Field(ge=0)  # binding DA award for this hour
+    # Running totals of the current commitment block (start to shutdown), for uplift.
+    commitment_block_cost_usd: float = Field(default=0.0, ge=0)
+    commitment_block_da_revenue_usd: float = 0.0
 
 
 class Decision(Stamped):
@@ -203,7 +206,14 @@ class OfferBlock(BaseModel):
 
 
 class Offer(BaseModel):
-    """A unit's DA offer for one local day: monotone non-decreasing steps from 0 MW."""
+    """A unit's DA offer for one local day.
+
+    `blocks` is the one-part curve the price-taker baseline uses: monotone non-decreasing
+    steps from 0 MW. The three-part fields describe the same unit to a solver that knows
+    about commitment: start cost by thermal state, the hourly cost of sitting at minimum
+    generation with no output-dependent fuel (no-load), and the steps above minimum
+    generation.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -214,9 +224,22 @@ class Offer(BaseModel):
     fuel_price_ref: str  # id of the gas/oil price row used
     available_mw: float = Field(ge=0)
     blocks: list[OfferBlock]
+    min_gen_mw: float = Field(default=0.0, ge=0)  # 0 when the unit cannot run (available < Pmin)
+    blocks_above_min_gen: list[OfferBlock] = []
+    no_load_cost_usd_per_h: float = Field(default=0.0, ge=0)
+    start_cost_usd_by_thermal_state: dict[ThermalState, float] = {}
 
     @model_validator(mode="after")
     def _check_blocks(self) -> "Offer":
+        previous_to, previous_price = self.min_gen_mw, float("-inf")
+        for block in self.blocks_above_min_gen:
+            if abs(block.mw_from - previous_to) > 1e-6 or block.mw_to <= block.mw_from:
+                raise ValueError("blocks above minimum generation must be contiguous from min_gen_mw")
+            if block.price_usd_per_mwh < previous_price - 1e-9:
+                raise ValueError("offer prices must be non-decreasing")
+            previous_to, previous_price = block.mw_to, block.price_usd_per_mwh
+        if self.blocks_above_min_gen and previous_to > self.available_mw + 1e-6:
+            raise ValueError("offer exceeds available_mw")
         previous_to, previous_price = 0.0, float("-inf")
         for block in self.blocks:
             if abs(block.mw_from - previous_to) > 1e-6 or block.mw_to <= block.mw_from:
@@ -405,6 +428,29 @@ class TableSummary(BaseModel):
     snapshot_id: str
 
 
+class CommitmentBound(BaseModel):
+    """Invariant 5 for one unit and planning day: three values of the same planning problem
+    (same horizon, same starting state, same prices), in USD of energy margin."""
+
+    unit_id: str
+    local_date: Date
+    horizon_hours: int
+    dp_value_usd: float  # optimum under start cost, no-load and min up/down
+    price_taker_constrained_value_usd: float  # the price-taker's rule made feasible; a lower bound
+    unconstrained_value_usd: float  # best hour by hour with no start, no-load or run-time limits; an upper bound
+
+
+class SolverSummary(BaseModel):
+    """One commitment solver's outcome over the whole scenario window, for comparison."""
+
+    solver: str
+    energy_margin_usd: float
+    uplift_usd: float
+    starts: int
+    hours_on: int
+    output_mwh: float
+
+
 class RunMeta(BaseModel):
     """What makes a run reproducible, plus its invariant results."""
 
@@ -421,6 +467,8 @@ class RunMeta(BaseModel):
     assumed_parameter_count: int
     ledger_totals_usd: dict[str, float]  # sum of amount_usd by ledger line (view, not stored twice)
     energy_margin_usd: float  # DA + RT energy revenue less fuel, start, no-load, VOM, emissions
+    solver: str = "price_taker"  # commitment solver behind the ledger
+    solver_comparison: list[SolverSummary] = []  # the ledger's solver first, then the baselines
 
 
 class RunResult(BaseModel):
@@ -432,6 +480,9 @@ class RunResult(BaseModel):
     decisions: list[Decision]
     offers: list[Offer]
     hour_inputs: list[HourInputs]
+    commitment_bounds: list[CommitmentBound] = []
+    # Output MW per state (same order as `states`) under each comparison solver.
+    comparison_output_mw: dict[str, list[float]] = {}
 
 
 class RunSummary(BaseModel):
@@ -467,6 +518,12 @@ class HourFlow(Stamped):
     da_energy_rev_usd: float
     fuel_cost_usd: float  # negative: a cost
     vom_usd: float  # negative: a cost
+    start_cost_usd: float  # negative: start fuel + other start cost, in the hour of a start
+    no_load_cost_usd: float  # negative
+    start_and_no_load_cost_usd: float  # negative: the two above together
+    uplift_usd: float  # make-whole booked in this hour (the hour after a commitment block ends)
+    started: bool  # the unit came on line in this hour
+    comparison_output_mw: dict[str, float]  # output this hour under each comparison solver
     hour_energy_margin_usd: float
     entries: list[LedgerEntry]
     input_refs: dict[str, str]  # input name -> row id, e.g. {"lbmp_da": "...", "gas_price": "..."}

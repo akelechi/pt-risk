@@ -30,7 +30,12 @@ def hour_flows(result: RunResult, unit_id: str | None = None, month: str | None 
     offers = {(offer.unit_id, offer.local_date): offer for offer in result.offers}
 
     flows: list[HourFlow] = []
-    for state, decision, inputs in zip(result.states, result.decisions, result.hour_inputs, strict=True):
+    was_on: dict[str, bool] = {}
+    for position, (state, decision, inputs) in enumerate(
+        zip(result.states, result.decisions, result.hour_inputs, strict=True)
+    ):
+        started = state.committed and not was_on.get(state.unit_id, False)
+        was_on[state.unit_id] = state.committed
         if unit_id is not None and state.unit_id != unit_id:
             continue
         if month is not None and state.ts_local.strftime("%Y-%m") != month:
@@ -59,6 +64,12 @@ def hour_flows(result: RunResult, unit_id: str | None = None, month: str | None 
                 da_energy_rev_usd=_sum_usd(entries, ("da_energy_rev",)),
                 fuel_cost_usd=_sum_usd(entries, FUEL_LINES),
                 vom_usd=_sum_usd(entries, ("vom",)),
+                start_cost_usd=_sum_usd(entries, ("start_cost",)),
+                no_load_cost_usd=_sum_usd(entries, ("no_load_cost",)),
+                start_and_no_load_cost_usd=_sum_usd(entries, ("start_cost", "no_load_cost")),
+                uplift_usd=_sum_usd(entries, ("uplift",)),
+                started=started,
+                comparison_output_mw={name: series[position] for name, series in result.comparison_output_mw.items()},
                 hour_energy_margin_usd=_sum_usd(entries, ENERGY_MARGIN_LINES),
                 entries=entries,
                 input_refs={

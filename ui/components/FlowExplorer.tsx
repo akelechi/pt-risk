@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { FlowDiagram } from "./FlowDiagram";
+import { CommitmentStrip } from "./CommitmentStrip";
 import { PriceStrip } from "./PriceStrip";
-import type { HourView } from "@/lib/api";
+import type { HourView, SolverSummary } from "@/lib/api";
 import { formatHour } from "@/lib/format";
 
 const PLAY_INTERVAL_MS = 100; // one hour per 100 ms
@@ -13,7 +14,9 @@ const PLAY_INTERVAL_MS = 100; // one hour per 100 ms
  * is playing; every figure shown comes from the engine's payload for that hour.
  * `initialIndex` lets a URL open on a given hour (`?hour=N`, zero-based).
  */
-export function FlowExplorer({ hours, initialIndex = 0 }: { hours: HourView[]; initialIndex?: number }) {
+export function FlowExplorer({ hours, solver, summaries, initialIndex = 0 }: {
+  hours: HourView[]; solver: string; summaries: SolverSummary[]; initialIndex?: number;
+}) {
   const [index, setIndex] = useState(Math.max(0, Math.min(hours.length - 1, initialIndex)));
   const [playing, setPlaying] = useState(false);
   const last = hours.length - 1;
@@ -95,13 +98,7 @@ export function FlowExplorer({ hours, initialIndex = 0 }: { hours: HourView[]; i
           setIndex(position);
         }}
       />
-      {/* On/off strip: one tick per hour, tall where the unit runs; the selected hour is marked. */}
-      <svg className="strip" viewBox={`0 0 ${hours.length} 12`} preserveAspectRatio="none" aria-hidden="true">
-        {hours.map((item, position) =>
-          item.committed ? <rect key={position} x={position} y={0} width={1} height={12} className="strip-on" /> : null,
-        )}
-        <rect x={index} y={0} width={1} height={12} className="strip-cursor" />
-      </svg>
+      <CommitmentStrip hours={hours} index={Math.min(index, last)} solver={solver} summaries={summaries} />
     </>
   );
 }

@@ -572,18 +572,14 @@ body {
   font-size: 11.5px;
 }
 
-.strip {
-  display: block;
-  width: 100%;
-  height: 14px;
-  border: 1px solid var(--line);
-  border-top: 0;
-  background: var(--surface-app);
-}
-
 .strip-on {
   fill: var(--physical);
   opacity: 0.55;
+}
+
+/* a start: full-height bar in the text color, so it differs from "on" by shape and tone */
+.strip-start {
+  fill: var(--text-primary);
 }
 
 .strip-cursor {
@@ -744,4 +740,63 @@ body {
   .price-days span:nth-child(even) {
     display: none;
   }
+}
+
+/* --------------------------------------------- commitment timeline by solver */
+
+.commitment {
+  border: 1px solid var(--line);
+  border-top: 0;
+  background: var(--surface-panel);
+  padding-bottom: 6px;
+}
+
+.commitment-caption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 16px;
+  padding: 7px 12px 3px;
+  font-size: 12px;
+}
+
+.commitment-name {
+  font-weight: 500;
+}
+
+.commitment-totals {
+  color: var(--text-muted);
+}
+
+.commitment-track {
+  display: block;
+  width: 100%;
+  height: 14px;
+  background: var(--surface-app);
+}
+
+.commitment-key {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 12px 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.key-on,
+.key-start {
+  display: inline-block;
+  width: 14px;
+  height: 8px;
+  background: var(--physical);
+  opacity: 0.55;
+}
+
+.key-start {
+  width: 3px;
+  height: 12px;
+  margin-left: 12px;
+  background: var(--text-primary);
+  opacity: 1;
 }

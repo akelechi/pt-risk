@@ -56,15 +56,21 @@ def _entry(inputs: HourInputs, unit_id: str, line: str, quantity: float, quantit
 
 
 def transition(
-    state: PlantState, decision: Decision, inputs: HourInputs, unit: UnitParams
+    state: PlantState, decision: Decision, inputs: HourInputs, unit: UnitParams, commitment_costs: bool = False
 ) -> tuple[PlantState, list[LedgerEntry]]:
     """Apply one hour's decision: returns the state during that hour and its ledger entries.
 
-    Milestone 1 (gas only, DA only): actual output equals the DA schedule, which equals the
-    decision's target. Booked per running hour:
+    Gas only, DA only: actual output equals the DA schedule, which equals the decision's
+    target. Booked per running hour:
       da_energy_rev  +  MWh x DA LBMP ($/MWh)
       fuel_cost_gas  -  MMBtu x gas price ($/MMBtu), MMBtu from the true heat-rate curve
       vom            -  MWh x VOM ($/MWh)
+    With `commitment_costs` (every solver except the price-taker baseline), also:
+      no_load_cost   -  no-load MMBtu x gas price, every hour on line
+      start_cost     -  in the hour of a start: start fuel MMBtu x gas price, and
+                        1 start x other start cost, both by thermal state before the start
+      uplift         +  in the first hour after a commitment block ends, when the block's
+                        costs exceeded its DA revenue (simplified make-whole, brief §4)
     """
     if decision.unit_id != unit.id or state.unit_id != unit.id:
         raise ValueError("state, decision and unit do not describe the same unit")
@@ -82,6 +88,68 @@ def transition(
     hours_offline_h = 0 if decision.commit else hours_in_state_h
     output_mw = decision.target_mw
 
+    started = decision.commit and not state.committed
+    stopped = state.committed and not decision.commit
+    gas_ref = {"gas_price": inputs.gas_price_ref, "gas_basis": GAS_BASIS_PARAM}
+
+    entries: list[LedgerEntry] = []
+    if decision.commit:
+        energy_mwh = settlement.da_energy_mwh(output_mw)
+        fuel_mmbtu = cost.fuel_burn_mmbtu_per_h(unit, output_mw) * settlement.HOUR_H
+        entries.append(
+            _entry(inputs, unit.id, "da_energy_rev", energy_mwh, "MWh",
+                   inputs.da_lbmp_usd_per_mwh, "USD/MWh", +1, {"lbmp_da": inputs.da_lbmp_ref})
+        )
+        entries.append(
+            _entry(inputs, unit.id, "fuel_cost_gas", fuel_mmbtu, "MMBtu",
+                   inputs.gas_price_usd_per_mmbtu, "USD/MMBtu", -1, gas_ref)
+        )
+        entries.append(
+            _entry(inputs, unit.id, "vom", energy_mwh, "MWh",
+                   unit.vom_usd_per_mwh.value, "USD/MWh", -1, {"param": f"units.{unit.id}.vom_usd_per_mwh"})
+        )
+        if commitment_costs:
+            entries.append(
+                _entry(inputs, unit.id, "no_load_cost", cost.no_load_fuel_mmbtu_per_h(unit) * settlement.HOUR_H, "MMBtu",
+                       inputs.gas_price_usd_per_mmbtu, "USD/MMBtu", -1,
+                       {**gas_ref, "param": f"units.{unit.id}.no_load_mmbtu_per_hr"})
+            )
+        if commitment_costs and started:
+            thermal = cost.thermal_state(state.hours_in_state_h, unit)
+            spec = cost.start_spec(unit, thermal)
+            start_ref = {"param": f"units.{unit.id}.start.{thermal}", "hours_offline_h": str(state.hours_in_state_h)}
+            entries.append(
+                _entry(inputs, unit.id, "start_cost", spec.start_fuel_mmbtu, "MMBtu",
+                       inputs.gas_price_usd_per_mmbtu, "USD/MMBtu", -1, {**gas_ref, **start_ref})
+            )
+            entries.append(
+                _entry(inputs, unit.id, "start_cost", 1.0, "starts", spec.start_other_cost_usd, "USD/start", -1, start_ref)
+            )
+
+    # Commitment block totals (start to shutdown), kept in cents so they do not drift.
+    if decision.commit:
+        carried_cost = 0.0 if started else state.commitment_block_cost_usd
+        carried_revenue = 0.0 if started else state.commitment_block_da_revenue_usd
+        block_cost_usd = round(carried_cost - sum(e.amount_usd for e in entries if e.amount_usd < 0), 2)
+        block_revenue_usd = round(carried_revenue + sum(e.amount_usd for e in entries if e.line == "da_energy_rev"), 2)
+    else:
+        block_cost_usd = block_revenue_usd = 0.0
+    if commitment_costs and stopped:
+        shortfall_usd = round(state.commitment_block_cost_usd - state.commitment_block_da_revenue_usd, 2)
+        if shortfall_usd > 0:
+            entries.append(
+                LedgerEntry(
+                    ts_utc=inputs.ts_utc, ts_local=inputs.ts_local, unit_id=unit.id, line="uplift",
+                    quantity=shortfall_usd, quantity_unit="USD", price=None, price_unit=None, amount_usd=shortfall_usd,
+                    ref={
+                        "rule": "simplified make-whole: block costs less block DA revenue, floored at 0",
+                        "block_hours_on_h": str(state.hours_in_state_h),
+                        "block_cost_usd": f"{state.commitment_block_cost_usd:.2f}",
+                        "block_da_revenue_usd": f"{state.commitment_block_da_revenue_usd:.2f}",
+                    },
+                )
+            )
+
     new_state = PlantState(
         ts_utc=inputs.ts_utc,
         ts_local=inputs.ts_local,
@@ -95,22 +163,7 @@ def transition(
         oil_permit_hours_used_ytd_h=state.oil_permit_hours_used_ytd_h,
         available_mw=inputs.available_mw,
         da_schedule_mw=output_mw,
+        commitment_block_cost_usd=block_cost_usd,
+        commitment_block_da_revenue_usd=block_revenue_usd,
     )
-
-    entries: list[LedgerEntry] = []
-    if decision.commit:
-        energy_mwh = settlement.da_energy_mwh(output_mw)
-        fuel_mmbtu = cost.fuel_burn_mmbtu_per_h(unit, output_mw) * settlement.HOUR_H
-        entries.append(
-            _entry(inputs, unit.id, "da_energy_rev", energy_mwh, "MWh",
-                   inputs.da_lbmp_usd_per_mwh, "USD/MWh", +1, {"lbmp_da": inputs.da_lbmp_ref})
-        )
-        entries.append(
-            _entry(inputs, unit.id, "fuel_cost_gas", fuel_mmbtu, "MMBtu",
-                   inputs.gas_price_usd_per_mmbtu, "USD/MMBtu", -1, {"gas_price": inputs.gas_price_ref, "gas_basis": GAS_BASIS_PARAM})
-        )
-        entries.append(
-            _entry(inputs, unit.id, "vom", energy_mwh, "MWh",
-                   unit.vom_usd_per_mwh.value, "USD/MWh", -1, {"param": f"units.{unit.id}.vom_usd_per_mwh"})
-        )
     return new_state, entries

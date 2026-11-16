@@ -140,3 +140,44 @@ def hour_inputs_for(hour: HourPrice, unit_id: str, available_mw: float,
         gas_price_usd_per_mmbtu=gas_usd_per_mmbtu, gas_index_price_usd_per_mmbtu=gas_usd_per_mmbtu,
         gas_basis_adder_usd_per_mmbtu=0.0, gas_price_ref="hand:gas", available_mw=available_mw,
     )
+
+
+# ------------------------------------------------------------- milestone 2 toy case
+
+from engine.contracts import PlantState  # noqa: E402
+from engine.ledger.ledger import Ledger  # noqa: E402
+from engine.market.offer import build_offer  # noqa: E402
+from engine.plant import commitment  # noqa: E402
+from engine.plant.state import initial_state, transition  # noqa: E402
+
+
+@pytest.fixture(scope="session")
+def m2_lbmps() -> list[float]:
+    """The 24 DA LBMPs typed into the milestone 2 hand-worked spreadsheet."""
+    sheet = load_workbook(FIXTURES / "m2_hand_day.xlsx")["plan_a_dp"]
+    return [float(sheet.cell(row=row, column=2).value) for row in range(2, 26)]
+
+
+def toy_offer_for(unit: UnitParams, local_date: date = HAND_DAY, available_mw: float | None = None,
+                  gas: float = HAND_GAS_USD_PER_MMBTU):
+    available = unit.pmax_mw.value if available_mw is None else available_mw
+    return build_offer(unit, local_date, "gas", gas, "hand:gas", available, OFFER_PRICE_DECIMALS)
+
+
+def run_day(unit: UnitParams, lbmps: list[float], solver: str, hours_offline_h: int = 168,
+            state: PlantState | None = None, local_date: date = HAND_DAY):
+    """Solve and settle one day with the toy unit: (ledger, states, inputs, decisions)."""
+    prices = day_prices(unit.id, lbmps, local_date)
+    offer = toy_offer_for(unit, local_date)
+    if state is None:
+        state = initial_state(unit, prices.hours[0].ts_utc, prices.hours[0].ts_local, hours_offline_h)
+    decisions = commitment.solve([(prices, offer)], state, unit, solver=solver)
+    ledger, states, inputs = Ledger(), [], []
+    for hour, decision in zip(prices.hours, decisions, strict=True):
+        hour_inputs = hour_inputs_for(hour, unit.id, unit.pmax_mw.value)
+        state, entries = transition(state, decision, hour_inputs, unit,
+                                    commitment_costs=solver in commitment.COMMITMENT_COST_SOLVERS)
+        ledger.append(entries)
+        states.append(state)
+        inputs.append(hour_inputs)
+    return ledger, states, inputs, decisions

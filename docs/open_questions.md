@@ -183,3 +183,36 @@ loads an RGGI price table.
 - Assumption: a stored run keeps states, decisions, hourly inputs and offers as JSON.
   One unit-month is about 1.5 MB; a two-unit year would be roughly 35 MB.
 - Confirm: owner; alternative is parquet per run before longer runs are stored.
+
+## Raised in milestone 2
+
+**Q-030 Uplift has no milestone in the brief** (M2, open). §4 defines it and the ledger has
+the line, but the milestone table never adds it.
+- Assumption: built in milestone 2, with commitment. Booked in the first hour after a
+  commitment block ends; costs are actual (offers are at cost); a block still running at
+  the end of the window is not settled; not part of the energy margin.
+- Note: with perfect foresight the DP never commits to a losing block, so its uplift in
+  January 2025 is 0. The price-taker with run-time limits earns $400,091.17 of it.
+- Confirm: owner; NYISO BPCG is settled per day, not per block.
+
+**Q-031 Ramp rate** (M2, open). `ramp_mw_per_min` is 5 MW/min, i.e. 300 MW per hour; Pmin
+to Pmax is 475 MW.
+- Assumption: not modelled. The unit moves between Pmin and full output within one hour.
+- Confirm: owner; a ramp limit would add output to the DP state.
+
+**Q-032 What the DP is allowed to know** (M2, open).
+- Assumption: perfect foresight of the DA LBMP and of the fuel price over a two-day
+  horizon, as the brief specifies for the LBMP. No haircut option is built yet.
+- Confirm: owner; alternative is to plan day two with day one's fuel price.
+
+**Q-033 End of the horizon** (M2, open).
+- Assumption: nothing is assumed after the horizon (a unit on at the end is worth 0
+  more), and on the last day of the window the horizon is one day, not two.
+- Consequence: the last day's plan is slightly short-sighted; it may shut down where a
+  longer window would stay on.
+- Confirm: owner; alternative is to load one extra day of prices past the window.
+
+**Q-034 Ancillary revenue has no rule and no milestone** (M2, open). The ledger has the
+line; §4 gives no rule.
+- Assumption: not modelled.
+- Confirm: owner.

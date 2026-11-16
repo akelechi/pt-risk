@@ -72,8 +72,8 @@ def test_scenario_outside_the_data_window_fails_invariant_6(base_scenario):
 
 
 def test_unimplemented_modules_and_unknown_units_are_refused(base_scenario):
-    modules = base_scenario.modules.model_copy(update={"dp_commitment": True})
-    with pytest.raises(NotImplementedError, match="dp_commitment"):
+    modules = base_scenario.modules.model_copy(update={"rt_settlement": True})
+    with pytest.raises(NotImplementedError, match="rt_settlement"):
         run(base_scenario.model_copy(update={"modules": modules}), REPO_ROOT)
     with pytest.raises(ValueError, match="U9"):
         run(base_scenario.model_copy(update={"unit_ids": ["U9"]}), REPO_ROOT)
@@ -180,3 +180,57 @@ def test_m1_gas_is_henry_plus_the_assumed_monthly_basis(m1_result):
     for inputs in m1_result.hour_inputs:
         assert inputs.gas_basis_adder_usd_per_mmbtu == 3.0
         assert inputs.gas_price_usd_per_mmbtu == pytest.approx(inputs.gas_index_price_usd_per_mmbtu + 3.0, abs=1e-9)
+
+
+# ------------------------------------------------------------------- milestone 2
+
+
+@pytest.fixture(scope="module")
+def m2_result():
+    return run(load_scenario(REPO_ROOT / "config" / "scenario.m2.yaml"), REPO_ROOT)
+
+
+def test_m2_january_invariants_3_4_5_6_7_8_pass(m2_result):
+    invariants = {result.invariant_id: result for result in m2_result.meta.invariants}
+    for invariant_id in (3, 4, 5, 6, 7, 8):
+        assert invariants[invariant_id].status == "pass", invariants[invariant_id].detail
+    for invariant_id in (1, 2):
+        assert invariants[invariant_id].status == "not_applicable"
+    assert len(m2_result.commitment_bounds) == 31
+
+
+def test_m2_run_time_limits_hold_in_january(m2_result, real_unit):
+    """Every on-block lasts at least the minimum up time and every off-block the minimum down time."""
+    blocks: list[tuple[bool, int]] = []
+    for state in m2_result.states:
+        if blocks and blocks[-1][0] == state.committed:
+            blocks[-1] = (state.committed, blocks[-1][1] + 1)
+        else:
+            blocks.append((state.committed, 1))
+    for committed, length in blocks[1:-1]:  # the first and last block are cut by the window
+        assert length >= (real_unit.min_up_hours.value if committed else real_unit.min_down_hours.value)
+    assert all(state.output_mw == 0 or state.output_mw >= real_unit.pmin_mw.value for state in m2_result.states)
+
+
+def test_m2_solver_comparison(m2_result, m1_result):
+    by_solver = {summary.solver: summary for summary in m2_result.meta.solver_comparison}
+    assert list(by_solver) == ["dp", "price_taker_constrained", "price_taker"]
+    assert m2_result.meta.solver == "dp" and by_solver["dp"].energy_margin_usd == m2_result.meta.energy_margin_usd
+    # the price-taker baseline inside a DP run is the milestone 1 run, to the cent
+    assert by_solver["price_taker"].energy_margin_usd == m1_result.meta.energy_margin_usd
+    assert by_solver["price_taker"].starts == 14
+    # the DP starts less often than either price-taker and beats the feasible one over the month
+    assert by_solver["dp"].starts < by_solver["price_taker_constrained"].starts < by_solver["price_taker"].starts
+    assert by_solver["dp"].energy_margin_usd > by_solver["price_taker_constrained"].energy_margin_usd
+    assert by_solver["dp"].energy_margin_usd < by_solver["price_taker"].energy_margin_usd
+    starts_in_ledger = sum(e.quantity for e in m2_result.ledger if e.line == "start_cost" and e.quantity_unit == "starts")
+    assert starts_in_ledger == by_solver["dp"].starts
+    assert set(m2_result.comparison_output_mw) == {"price_taker_constrained", "price_taker"}
+    assert all(len(series) == len(m2_result.states) for series in m2_result.comparison_output_mw.values())
+
+
+def test_m1_baseline_is_unchanged_by_milestone_2(m1_result):
+    assert m1_result.meta.solver == "price_taker"
+    assert m1_result.meta.energy_margin_usd == 18408203.95
+    assert [summary.solver for summary in m1_result.meta.solver_comparison] == ["price_taker"]
+    assert m1_result.commitment_bounds == [] and m1_result.comparison_output_mw == {}

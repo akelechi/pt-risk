@@ -4,9 +4,10 @@ A run records what makes it reproducible: config hash, data snapshot ids, code v
 and seed. Its id is derived from those four, so the same scenario on the same data and
 code always has the same id. Time comes from the scenario; the wall clock is never read.
 
-Modules implemented: `dispatch` (milestone 1: price-taker, gas only, DA only). A scenario
-that switches on any other module is refused. With `dispatch` off the run only loads and
-verifies its inputs.
+Modules implemented: `dispatch` (milestone 1: price-taker, gas only, DA only) and
+`dp_commitment` (milestone 2: DP commitment with start cost, no-load and run-time limits,
+plus the price-taker baselines it is compared with). A scenario that switches on any
+other module is refused. With `dispatch` off the run only loads and verifies its inputs.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ import pandas as pd
 import yaml
 
 from engine.contracts import (
+    CommitmentBound,
     DayPrices,
     Decision,
     HourInputs,
@@ -31,6 +33,7 @@ from engine.contracts import (
     RunMeta,
     RunResult,
     Scenario,
+    SolverSummary,
     TableSummary,
 )
 from engine.inputs import store
@@ -47,10 +50,14 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 HOURLY_TABLES = ("lbmp_da", "lbmp_rt")
 DAILY_TABLES = ("gas_price",)
 RUN_ID_LENGTH = 12
-IMPLEMENTED_MODULES = {"dispatch"}
+IMPLEMENTED_MODULES = {"dispatch", "dp_commitment"}
 # Index the assumed basis adder is added to. Module gas_basis (milestone 5) replaces the
 # adder with a published delivered index.
 BASE_GAS_POINT = "HENRY"
+# The DP plans over this many local days and keeps the first (brief §4: 48 h rolling, step 24 h).
+PLANNING_HORIZON_DAYS = 2
+# Solvers a DP run is compared with (invariant 5 and the milestone 2 numbers).
+COMPARISON_SOLVERS = ("price_taker_constrained", "price_taker")
 ENERGY_MARGIN_LINES = (
     "da_energy_rev",
     "rt_balancing",
@@ -72,6 +79,7 @@ class Execution:
     decisions: list[Decision] = field(default_factory=list)
     offers: list[Offer] = field(default_factory=list)
     hour_inputs: list[HourInputs] = field(default_factory=list)
+    commitment_bounds: list[CommitmentBound] = field(default_factory=list)
 
 
 def load_scenario(path: Path) -> Scenario:
@@ -122,19 +130,33 @@ def _day_prices(unit_id: str, unit_rows: pd.DataFrame) -> list[DayPrices]:
     return days
 
 
-def _execute(scenario: Scenario, plant: Plant, market_raw: dict, inputs: dict[str, pd.DataFrame]) -> Execution:
+def solver_of(scenario: Scenario) -> str:
+    """The commitment solver a scenario's modules select."""
+    return "dp" if scenario.modules.dp_commitment else "price_taker"
+
+
+def _execute(
+    scenario: Scenario, plant: Plant, market_raw: dict, inputs: dict[str, pd.DataFrame], solver: str | None = None
+) -> Execution:
     """Run the state machine over the scenario window, unit by unit, day by day, hour by hour.
 
-    Per unit and local day: delivered gas price for the day (index + assumed basis) -> offer -> commitment solver -> one
-    transition per hour. Ledger entries come only from `transition`.
+    Per unit and local day: delivered gas price for the day (index + assumed basis) -> offer
+    -> commitment solver -> one transition per hour. The solver sees the day and, when the
+    window has one, the next day (perfect foresight); only the first day's decisions are
+    used. Ledger entries come only from `transition`. `solver` overrides the scenario's
+    own solver, for the comparison runs.
     """
     switched_on = {name for name, on in scenario.modules.model_dump().items() if on}
     not_implemented = sorted(switched_on - IMPLEMENTED_MODULES)
     if not_implemented:
         raise NotImplementedError(f"modules not implemented yet: {not_implemented}")
+    if "dp_commitment" in switched_on and "dispatch" not in switched_on:
+        raise ValueError("module dp_commitment needs module dispatch")
     execution = Execution()
     if "dispatch" not in switched_on:
         return execution
+    solver = solver or solver_of(scenario)
+    commitment_costs = solver in commitment.COMMITMENT_COST_SOLVERS
 
     gas = GasPrices(inputs["gas_price"], BASE_GAS_POINT, market_raw["gas_price_max_staleness_days"])
     basis_adder_by_month = plant.fuel.gas_basis_adder_usd_per_mmbtu_by_month.value
@@ -153,16 +175,25 @@ def _execute(scenario: Scenario, plant: Plant, market_raw: dict, inputs: dict[st
         first_hour = days[0].hours[0]
         state = initial_state(unit, first_hour.ts_utc, first_hour.ts_local, scenario.initial_hours_offline_h)
 
+        gas_of_day = []
+        offers = []
         for day in days:
             gas_index_price, gas_ref = gas.on(day.local_date)
             gas_price, gas_basis_adder = delivered_gas_price_usd_per_mmbtu(
                 gas_index_price, basis_adder_by_month, day.local_date
             )
-            offer = build_offer(
-                unit, day.local_date, "gas", gas_price, gas_ref, available_mw, market_raw["offer_price_decimals"]
+            gas_of_day.append((gas_price, gas_index_price, gas_basis_adder, gas_ref))
+            offers.append(
+                build_offer(unit, day.local_date, "gas", gas_price, gas_ref, available_mw, market_raw["offer_price_decimals"])
             )
-            decisions = commitment.solve(day, state, unit, offer, solver="price_taker")
-            execution.offers.append(offer)
+
+        for index, day in enumerate(days):
+            gas_price, gas_index_price, gas_basis_adder, gas_ref = gas_of_day[index]
+            horizon = list(zip(days[index : index + PLANNING_HORIZON_DAYS], offers[index : index + PLANNING_HORIZON_DAYS]))
+            decisions = commitment.solve(horizon, state, unit, solver=solver)
+            if solver == "dp":
+                execution.commitment_bounds.append(commitment.margin_bound(unit, horizon, state))
+            execution.offers.append(offers[index])
             for hour, decision in zip(day.hours, decisions, strict=True):
                 hour_inputs = HourInputs(
                     ts_utc=hour.ts_utc,
@@ -176,12 +207,36 @@ def _execute(scenario: Scenario, plant: Plant, market_raw: dict, inputs: dict[st
                     gas_price_ref=gas_ref,
                     available_mw=available_mw,
                 )
-                state, entries = transition(state, decision, hour_inputs, unit)
+                state, entries = transition(state, decision, hour_inputs, unit, commitment_costs=commitment_costs)
                 execution.ledger.append(entries)
                 execution.states.append(state)
                 execution.decisions.append(decision)
                 execution.hour_inputs.append(hour_inputs)
     return execution
+
+
+def solver_summary(solver: str, execution: Execution) -> SolverSummary:
+    """One solver's outcome over the window, read from its ledger and states."""
+    totals = ledger_totals_usd(execution.ledger)
+    return SolverSummary(
+        solver=solver,
+        energy_margin_usd=energy_margin_usd(totals),
+        uplift_usd=totals.get("uplift", 0.0),
+        starts=count_starts(execution.states),
+        hours_on=sum(1 for state in execution.states if state.committed),
+        output_mwh=sum(state.output_mw for state in execution.states),
+    )
+
+
+def count_starts(states: list[PlantState]) -> int:
+    """Off-to-on transitions per unit; every unit begins a run off."""
+    starts = 0
+    previous: dict[str, bool] = {}
+    for state in states:
+        if state.committed and not previous.get(state.unit_id, False):
+            starts += 1
+        previous[state.unit_id] = state.committed
+    return starts
 
 
 def ledger_totals_usd(ledger: Ledger) -> dict[str, float]:
@@ -233,16 +288,27 @@ def run(scenario: Scenario, root: Path = REPO_ROOT) -> RunResult:
     leaves = flatten_leaves(plant)
     assumed_count = status_counts(plant)["assumed"]
     dispatching = scenario.modules.dispatch
+    solver = solver_of(scenario)
+    commitment_costs = solver in commitment.COMMITMENT_COST_SOLVERS
+    comparisons = (
+        {name: _execute(scenario, plant, market_raw, inputs, solver=name) for name in COMPARISON_SOLVERS}
+        if solver == "dp"
+        else {}
+    )
     invariants = [
         reconcile.pending(1),
         reconcile.pending(2),
-        reconcile.check_cost_identity(execution.states, entries, execution.hour_inputs, units)
+        reconcile.check_cost_identity(
+            execution.states, entries, execution.hour_inputs, units, commitment_costs, scenario.initial_hours_offline_h
+        )
         if dispatching
         else reconcile.module_off(3, "dispatch"),
         reconcile.check_revenue_identity(execution.states, entries, execution.hour_inputs)
         if dispatching
         else reconcile.module_off(4, "dispatch"),
-        reconcile.pending(5),
+        reconcile.check_margin_bound(execution.commitment_bounds)
+        if solver == "dp"
+        else reconcile.module_off(5, "dp_commitment"),
         reconcile.check_time_integrity(
             {name: inputs[name] for name in HOURLY_TABLES},
             timezone,
@@ -277,6 +343,12 @@ def run(scenario: Scenario, root: Path = REPO_ROOT) -> RunResult:
         assumed_parameter_count=assumed_count,
         ledger_totals_usd=totals,
         energy_margin_usd=energy_margin_usd(totals),
+        solver=solver,
+        solver_comparison=(
+            [solver_summary(solver, execution), *(solver_summary(name, run_) for name, run_ in comparisons.items())]
+            if dispatching
+            else []
+        ),
     )
     return RunResult(
         meta=meta,
@@ -285,6 +357,8 @@ def run(scenario: Scenario, root: Path = REPO_ROOT) -> RunResult:
         decisions=execution.decisions,
         offers=execution.offers,
         hour_inputs=execution.hour_inputs,
+        commitment_bounds=execution.commitment_bounds,
+        comparison_output_mw={name: [state.output_mw for state in run_.states] for name, run_ in comparisons.items()},
     )
 
 

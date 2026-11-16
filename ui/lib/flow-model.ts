@@ -59,7 +59,14 @@ export type FlowArrow = {
   labelAnchor: "start" | "middle" | "end";
   /** Milestone whose engine first puts a value on this arrow. */
   milestone: number;
+  /** When given, the arrow is drawn only in hours where this holds (e.g. the hour of a start). */
+  when?: (hour: HourView) => boolean;
 };
+
+/** Arrows to draw for an hour: all of them, less the conditional ones that do not apply. */
+export function arrowsFor(hour: HourView | null): FlowArrow[] {
+  return ARROWS.filter((arrow) => arrow.when === undefined || (hour !== null && arrow.when(hour)));
+}
 
 export const VIEW_BOX = { width: 1280, height: 620 } as const;
 
@@ -109,14 +116,15 @@ export const NODES: FlowNode[] = [
     title: "LEDGER",
     subtitle: "This hour's lines",
     icon: "ledger",
-    x: 1095, y: 110, width: 175, height: 250,
+    x: 1076, y: 110, width: 194, height: 250,
     figures: [
       figure("DA energy", "$", "money", "da_energy_rev_usd"),
       figure("RT balancing", "$", "money"),
       figure("Fuel", "$", "money", "fuel_cost_usd"),
       figure("VOM", "$", "money", "vom_usd"),
-      figure("Start + no-load", "$", "money"),
+      figure("Start + no-load", "$", "money", "start_and_no_load_cost_usd"),
       figure("Hour margin", "$", "money", "hour_energy_margin_usd"),
+      figure("Uplift", "$", "money", "uplift_usd"),
     ],
   },
   {
@@ -194,6 +202,17 @@ export const ARROWS: FlowArrow[] = [
     figures: [figure("DA energy revenue", "$", "money", "da_energy_rev_usd")],
     labelX: 746, labelY: 46, labelAnchor: "middle",
     milestone: 1,
+  },
+  {
+    // Drawn only in the hour the unit comes on line.
+    id: "start_cost",
+    from: "plant", to: "ledger",
+    path: "M800 332 H1068",
+    kind: "money",
+    figures: [figure("Start cost", "$", "money", "start_cost_usd")],
+    labelX: 855, labelY: 352, labelAnchor: "middle",
+    milestone: 2,
+    when: (hour) => hour.started,
   },
   {
     id: "gas_supply",

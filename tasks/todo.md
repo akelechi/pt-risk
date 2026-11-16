@@ -48,3 +48,13 @@ Milestone 0 complete on branch `milestone-0`.
 - UI restyled to `docs/brand.md` tokens (`ui/styles/tokens.css`); no literal colors in components.
 - 117 tests green; invariants 3, 4, 6, 7, 8 pass on the real month.
 - Not done: arrow click-through panel; CO2 cost; light mode still not visually verified.
+
+## Milestones 2-4 (owner: "lets then do till milestone 4", 2026-11-16)
+
+Each on its own branch, in order, with tests, note, methodology, questions, screenshot.
+
+- [x] M2 `milestone-2`: no-load, start cost by thermal state, three-part offer, DP (2-day
+      rolling), price-taker with run-time limits, uplift, invariant 5, commitment timeline.
+      January 2025 U1: DP 16,609,577.01 with 4 starts; baseline 18,408,203.95 with 14.
+- [ ] M3 `milestone-3`: RT settlement on deviations, seeded daily outages, invariants 1 and 4.
+- [ ] M4 `milestone-4`: oil price table, fuel choice, inventory, permit hours, barge, invariant 2.

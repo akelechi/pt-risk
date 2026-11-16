@@ -194,6 +194,10 @@ export interface components {
          *     entries booked in the hour, and the input rows behind them (`ref`).
          */
         HourFlow: {
+            /** Comparison Output Mw */
+            comparison_output_mw: {
+                [key: string]: number;
+            };
             /** Da Energy Rev Usd */
             da_energy_rev_usd: number;
             /** Da Lbmp Usd Per Mwh */
@@ -219,6 +223,8 @@ export interface components {
             input_refs: {
                 [key: string]: string;
             };
+            /** No Load Cost Usd */
+            no_load_cost_usd: number;
             /** Offer Blocks */
             offer_blocks: components["schemas"]["OfferBlock"][];
             /** Offer Max Price Usd Per Mwh */
@@ -229,6 +235,12 @@ export interface components {
             offered_mw: number;
             /** Output Mw */
             output_mw: number;
+            /** Start And No Load Cost Usd */
+            start_and_no_load_cost_usd: number;
+            /** Start Cost Usd */
+            start_cost_usd: number;
+            /** Started */
+            started: boolean;
             state: components["schemas"]["PlantState"];
             /**
              * Ts Local
@@ -242,6 +254,8 @@ export interface components {
             ts_utc: string;
             /** Unit Id */
             unit_id: string;
+            /** Uplift Usd */
+            uplift_usd: number;
             /** Vom Usd */
             vom_usd: number;
         };
@@ -443,6 +457,16 @@ export interface components {
         PlantState: {
             /** Available Mw */
             available_mw: number;
+            /**
+             * Commitment Block Cost Usd
+             * @default 0
+             */
+            commitment_block_cost_usd: number;
+            /**
+             * Commitment Block Da Revenue Usd
+             * @default 0
+             */
+            commitment_block_da_revenue_usd: number;
             /** Committed */
             committed: boolean;
             /** Da Schedule Mw */
@@ -517,6 +541,16 @@ export interface components {
             scenario: components["schemas"]["Scenario"];
             /** Seed */
             seed: number;
+            /**
+             * Solver
+             * @default price_taker
+             */
+            solver: string;
+            /**
+             * Solver Comparison
+             * @default []
+             */
+            solver_comparison: components["schemas"]["SolverSummary"][];
         };
         /**
          * RunSummary
@@ -585,6 +619,24 @@ export interface components {
             start_date: string;
             /** Unit Ids */
             unit_ids: string[];
+        };
+        /**
+         * SolverSummary
+         * @description One commitment solver's outcome over the whole scenario window, for comparison.
+         */
+        SolverSummary: {
+            /** Energy Margin Usd */
+            energy_margin_usd: number;
+            /** Hours On */
+            hours_on: number;
+            /** Output Mwh */
+            output_mwh: number;
+            /** Solver */
+            solver: string;
+            /** Starts */
+            starts: number;
+            /** Uplift Usd */
+            uplift_usd: number;
         };
         /**
          * TableSummary

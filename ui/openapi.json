@@ -70,6 +70,13 @@
       "HourFlow": {
         "description": "The flow-diagram payload for one unit and hour: every arrow's value, the ledger\nentries booked in the hour, and the input rows behind them (`ref`).",
         "properties": {
+          "comparison_output_mw": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Comparison Output Mw",
+            "type": "object"
+          },
           "da_energy_rev_usd": {
             "title": "Da Energy Rev Usd",
             "type": "number"
@@ -123,6 +130,10 @@
             "title": "Input Refs",
             "type": "object"
           },
+          "no_load_cost_usd": {
+            "title": "No Load Cost Usd",
+            "type": "number"
+          },
           "offer_blocks": {
             "items": {
               "$ref": "#/components/schemas/OfferBlock"
@@ -160,6 +171,18 @@
             "title": "Output Mw",
             "type": "number"
           },
+          "start_and_no_load_cost_usd": {
+            "title": "Start And No Load Cost Usd",
+            "type": "number"
+          },
+          "start_cost_usd": {
+            "title": "Start Cost Usd",
+            "type": "number"
+          },
+          "started": {
+            "title": "Started",
+            "type": "boolean"
+          },
           "state": {
             "$ref": "#/components/schemas/PlantState"
           },
@@ -176,6 +199,10 @@
           "unit_id": {
             "title": "Unit Id",
             "type": "string"
+          },
+          "uplift_usd": {
+            "title": "Uplift Usd",
+            "type": "number"
           },
           "vom_usd": {
             "title": "Vom Usd",
@@ -202,6 +229,12 @@
           "da_energy_rev_usd",
           "fuel_cost_usd",
           "vom_usd",
+          "start_cost_usd",
+          "no_load_cost_usd",
+          "start_and_no_load_cost_usd",
+          "uplift_usd",
+          "started",
+          "comparison_output_mw",
           "hour_energy_margin_usd",
           "entries",
           "input_refs"
@@ -601,6 +634,17 @@
             "title": "Available Mw",
             "type": "number"
           },
+          "commitment_block_cost_usd": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Commitment Block Cost Usd",
+            "type": "number"
+          },
+          "commitment_block_da_revenue_usd": {
+            "default": 0.0,
+            "title": "Commitment Block Da Revenue Usd",
+            "type": "number"
+          },
           "committed": {
             "title": "Committed",
             "type": "boolean"
@@ -765,6 +809,19 @@
           "seed": {
             "title": "Seed",
             "type": "integer"
+          },
+          "solver": {
+            "default": "price_taker",
+            "title": "Solver",
+            "type": "string"
+          },
+          "solver_comparison": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SolverSummary"
+            },
+            "title": "Solver Comparison",
+            "type": "array"
           }
         },
         "required": [
@@ -904,6 +961,45 @@
           "seed"
         ],
         "title": "Scenario",
+        "type": "object"
+      },
+      "SolverSummary": {
+        "description": "One commitment solver's outcome over the whole scenario window, for comparison.",
+        "properties": {
+          "energy_margin_usd": {
+            "title": "Energy Margin Usd",
+            "type": "number"
+          },
+          "hours_on": {
+            "title": "Hours On",
+            "type": "integer"
+          },
+          "output_mwh": {
+            "title": "Output Mwh",
+            "type": "number"
+          },
+          "solver": {
+            "title": "Solver",
+            "type": "string"
+          },
+          "starts": {
+            "title": "Starts",
+            "type": "integer"
+          },
+          "uplift_usd": {
+            "title": "Uplift Usd",
+            "type": "number"
+          }
+        },
+        "required": [
+          "solver",
+          "energy_margin_usd",
+          "uplift_usd",
+          "starts",
+          "hours_on",
+          "output_mwh"
+        ],
+        "title": "SolverSummary",
         "type": "object"
       },
       "TableSummary": {

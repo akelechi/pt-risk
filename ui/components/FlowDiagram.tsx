@@ -2,10 +2,10 @@ import type { ReactNode } from "react";
 import { Icon } from "./Icon";
 import type { HourView } from "@/lib/api";
 import {
-  ARROWS,
   NODES,
   PLACEHOLDER,
   VIEW_BOX,
+  arrowsFor,
   describeArrow,
   describeFigure,
   figureValue,
@@ -143,7 +143,7 @@ function Diagram({ hour }: { hour: HourView | null }) {
           </marker>
         ))}
       </defs>
-      {ARROWS.map((arrow) => (
+      {arrowsFor(hour).map((arrow) => (
         <Arrow key={arrow.id} arrow={arrow} hour={hour} />
       ))}
       {NODES.map((node) => (
@@ -173,7 +173,7 @@ function Stacked({ hour }: { hour: HourView | null }) {
           </dl>
         </li>
       )}
-      {ARROWS.map((arrow) => (
+      {arrowsFor(hour).map((arrow) => (
         <li key={arrow.id} className={`stack-item ${arrow.kind}`}>
           <div className="stack-route">
             <span>{title(arrow.from)}</span>

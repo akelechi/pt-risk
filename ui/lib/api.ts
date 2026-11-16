@@ -8,6 +8,7 @@ export type ParamsResponse = components["schemas"]["ParamsResponse"];
 export type RunSummary = components["schemas"]["RunSummary"];
 export type RunMeta = components["schemas"]["RunMeta"];
 export type HourFlow = components["schemas"]["HourFlow"];
+export type SolverSummary = components["schemas"]["SolverSummary"];
 
 /**
  * The fields of an HourFlow the flow screen displays, flattened. A selection of engine
@@ -30,6 +31,11 @@ export type HourView = Pick<
   | "fuel_cost_usd"
   | "vom_usd"
   | "hour_energy_margin_usd"
+  | "start_cost_usd"
+  | "start_and_no_load_cost_usd"
+  | "uplift_usd"
+  | "started"
+  | "comparison_output_mw"
 > & {
   committed: boolean;
   thermal_state: HourFlow["state"]["thermal_state"];
@@ -55,6 +61,11 @@ export function toHourView(flow: HourFlow): HourView {
     fuel_cost_usd: flow.fuel_cost_usd,
     vom_usd: flow.vom_usd,
     hour_energy_margin_usd: flow.hour_energy_margin_usd,
+    start_cost_usd: flow.start_cost_usd,
+    start_and_no_load_cost_usd: flow.start_and_no_load_cost_usd,
+    uplift_usd: flow.uplift_usd,
+    started: flow.started,
+    comparison_output_mw: flow.comparison_output_mw,
     committed: flow.state.committed,
     thermal_state: flow.state.thermal_state,
     fuel: flow.state.fuel,

@@ -7,7 +7,9 @@ convexified blocks: adjacent blocks whose incremental heat rate would decrease a
 at their MW-weighted average, so the curve is monotone non-decreasing. At every pooled
 block boundary the fuel implied by the pooled curve equals the true fuel exactly.
 
-Milestone 1 scope: gas only. Start cost and no-load cost arrive in milestone 2.
+Milestone 2 adds no-load fuel (burned every hour the unit is on, on top of the heat-rate
+curve) and start fuel and start cost by thermal state. A committed unit cannot run below
+Pmin, so its dispatch above Pmin follows the blocks above Pmin, convexified on their own.
 """
 
 from __future__ import annotations
@@ -115,3 +117,31 @@ def thermal_state(hours_offline_h: int, unit: UnitParams) -> ThermalState:
     if hours_offline_h <= unit.start.warm.value.hours_offline_max_h:
         return "warm"
     return "cold"
+
+
+def blocks_above_pmin(unit: UnitParams, cap_mw: float) -> list[HeatRateBlock]:
+    """Convexified heat-rate blocks from Pmin up to `cap_mw`: the dispatch curve of a unit
+    that is already committed. Empty when `cap_mw` does not exceed Pmin."""
+    pmin = unit.pmin_mw.value
+    clipped = [
+        HeatRateBlock(max(block.mw_from, pmin), block.mw_to, block.incremental_heat_rate_mmbtu_per_mwh)
+        for block in true_blocks(unit, cap_mw=cap_mw)
+        if block.mw_to > pmin
+    ]
+    return convexify(clipped)
+
+
+def no_load_fuel_mmbtu_per_h(unit: UnitParams) -> float:
+    """Fuel burned per hour on line regardless of output, MMBtu/h."""
+    return unit.no_load_mmbtu_per_hr.value
+
+
+def start_spec(unit: UnitParams, state: ThermalState):
+    """The StartSpec (start fuel MMBtu, other cost USD) for a start from `state`."""
+    return getattr(unit.start, state).value
+
+
+def start_cost_usd(unit: UnitParams, state: ThermalState, fuel_price_usd_per_mmbtu: float) -> float:
+    """Cost of one start: start fuel x fuel price + other start cost, USD (brief §4)."""
+    spec = start_spec(unit, state)
+    return spec.start_fuel_mmbtu * fuel_price_usd_per_mmbtu + spec.start_other_cost_usd

@@ -32,7 +32,7 @@ def run_hand_day(unit, lbmps, hours_offline_h: int = 168):
     prices = day_prices("U1", lbmps)
     offer = build_offer(unit, HAND_DAY, "gas", HAND_GAS_USD_PER_MMBTU, "hand:gas", 600.0, OFFER_PRICE_DECIMALS)
     state = initial_state(unit, prices.hours[0].ts_utc, prices.hours[0].ts_local, hours_offline_h)
-    decisions = commitment.solve(prices, state, unit, offer)
+    decisions = commitment.solve([(prices, offer)], state, unit)
     ledger, states, inputs = Ledger(), [], []
     for hour, decision in zip(prices.hours, decisions, strict=True):
         hour_inputs = hour_inputs_for(hour, "U1", 600.0)
@@ -152,3 +152,98 @@ def test_invariants_3_and_4_pass_on_the_hand_day_and_catch_tampering(toy_unit, h
     moved = [states[8].model_copy(update={"output_mw": 300.0, "da_schedule_mw": 300.0})] + states[:8] + states[9:]
     assert reconcile.check_cost_identity(moved, entries, inputs, units).status == "fail"
     assert reconcile.check_revenue_identity(moved, entries, inputs).status == "fail"
+
+
+# ------------------------------------------------------------- milestone 2
+# Hand day (tests/fixtures/m2_hand_day.xlsx): 6 h at 40, 4 h at 60, 6 h at 44, 6 h at 70, 2 h at 40.
+#   on at 600 MW: fuel 6,345 MMBtu x 4 = 25,380; no-load 400 x 4 = 1,600; VOM 1,800
+#   on at 450 MW: fuel 4,725 x 4 = 18,900; no-load 1,600; VOM 1,350
+#   on at 150 MW: fuel 1,710 x 4 = 6,840; no-load 1,600; VOM 450
+#   cold start 5,000 MMBtu x 4 + 25,000 = 45,000; hot start 1,500 x 4 + 8,000 = 14,000
+# Plan A (DP), on 6-21: revenue 4 x 36,000 + 6 x 19,800 + 6 x 42,000 = 514,800
+#   fuel 10 x 25,380 + 6 x 18,900 = 367,200; no-load 16 x 1,600 = 25,600; VOM 26,100; start 45,000
+#   energy margin 50,900
+# Plan B (price-taker made feasible), on 6-13 and 20-23:
+#   block 6-13: revenue 223,200; costs 115,120 + 87,400 + 45,000 = 247,520 -> uplift 24,320
+#   block 20-23: 2 x 13,220 - 2 x 2,890 - 14,000 = 6,660 (still on at midnight: no uplift yet)
+#   energy margin -24,320 + 6,660 = -17,660
+
+from tests.conftest import run_day  # noqa: E402
+
+
+def test_m2_hand_day_dp_ledger(toy_unit, m2_lbmps):
+    ledger, states, inputs, _ = run_day(toy_unit, m2_lbmps, "dp")
+    totals = ledger_totals_usd(ledger)
+    assert totals == {
+        "da_energy_rev": 514800.00, "fuel_cost_gas": -367200.00, "no_load_cost": -25600.00,
+        "start_cost": -45000.00, "vom": -26100.00,
+    }
+    assert energy_margin_usd(totals) == 50900.00
+    start_entries = [e for e in ledger.entries if e.line == "start_cost"]
+    assert [(e.quantity, e.quantity_unit, e.price, e.amount_usd) for e in start_entries] == [
+        (5000.0, "MMBtu", 4.00, -20000.00), (1.0, "starts", 25000.0, -25000.00),
+    ]
+    assert all(e.ts_utc == states[6].ts_utc for e in start_entries)
+    assert start_entries[1].ref == {"param": "units.U1.start.cold", "hours_offline_h": "174"}
+    assert amounts(ledger.entries, states[10].ts_utc) == {
+        "da_energy_rev": 19800.00, "fuel_cost_gas": -18900.00, "vom": -1350.00, "no_load_cost": -1600.00,
+    }
+    assert [s.hours_in_state_h for s in states[5:8]] == [174, 1, 2] and states[22].hours_in_state_h == 1
+    assert [s.thermal_state for s in states[20:]] == ["hot"] * 4
+    # block totals run while on and clear when off
+    assert states[21].commitment_block_cost_usd == 463900.00 and states[21].commitment_block_da_revenue_usd == 514800.00
+    assert states[22].commitment_block_cost_usd == 0.0 and states[22].commitment_block_da_revenue_usd == 0.0
+    assert reconcile.check_cost_identity(states, list(ledger.entries), inputs, {"U1": toy_unit}, True, 168).status == "pass"
+    assert reconcile.check_revenue_identity(states, list(ledger.entries), inputs).status == "pass"
+
+
+def test_m2_hand_day_price_taker_with_constraints_books_uplift(toy_unit, m2_lbmps):
+    ledger, states, inputs, _ = run_day(toy_unit, m2_lbmps, "price_taker_constrained")
+    totals = ledger_totals_usd(ledger)
+    assert energy_margin_usd(totals) == -17660.00
+    assert totals["start_cost"] == -59000.00 and totals["uplift"] == 24320.00
+    uplift = [e for e in ledger.entries if e.line == "uplift"]
+    assert len(uplift) == 1 and uplift[0].ts_utc == states[14].ts_utc  # first hour after the block
+    assert uplift[0].ref["block_cost_usd"] == "247520.00" and uplift[0].ref["block_da_revenue_usd"] == "223200.00"
+    assert uplift[0].ref["block_hours_on_h"] == "8"
+    assert reconcile.check_cost_identity(states, list(ledger.entries), inputs, {"U1": toy_unit}, True, 168).status == "pass"
+
+
+def test_price_taker_baseline_books_no_start_no_load_or_uplift(toy_unit, m2_lbmps):
+    ledger, _, _, _ = run_day(toy_unit, m2_lbmps, "price_taker")
+    assert set(ledger_totals_usd(ledger)) == {"da_energy_rev", "fuel_cost_gas", "vom"}
+
+
+def test_invariant_3_catches_start_and_no_load_tampering(toy_unit, m2_lbmps):
+    ledger, states, inputs, _ = run_day(toy_unit, m2_lbmps, "dp")
+    entries, units = list(ledger.entries), {"U1": toy_unit}
+
+    def check(changed):
+        return reconcile.check_cost_identity(states, changed, inputs, units, True, 168).status
+
+    without_other_start = [e for e in entries if not (e.line == "start_cost" and e.quantity_unit == "starts")]
+    assert check(without_other_start) == "fail"
+    no_load_index = next(i for i, e in enumerate(entries) if e.line == "no_load_cost")
+    one_cent = entries[:no_load_index] + [entries[no_load_index].model_copy(update={"amount_usd": -1600.01})] + entries[no_load_index + 1:]
+    assert check(one_cent) == "fail"
+    # the same ledger read as if the unit had been off only 5 h before the start: a hot
+    # start would have been the right size, so the booked cold start no longer matches
+    warm_history = states[:5] + [states[5].model_copy(update={"hours_in_state_h": 5})] + states[6:]
+    assert reconcile.check_cost_identity(warm_history, entries, inputs, units, True, 168).status == "fail"
+    # and read without commitment costs, the no-load and start lines are unexplained
+    assert reconcile.check_cost_identity(states, entries, inputs, units, False, 168).status == "fail"
+
+
+def test_invariant_5_fails_when_the_ordering_breaks():
+    from datetime import date
+
+    from engine.contracts import CommitmentBound
+
+    def bound(dp_value, constrained, unconstrained):
+        return CommitmentBound(unit_id="U1", local_date=date(2025, 1, 15), horizon_hours=24, dp_value_usd=dp_value,
+                               price_taker_constrained_value_usd=constrained, unconstrained_value_usd=unconstrained)
+
+    assert reconcile.check_margin_bound([bound(50900.0, -17660.0, 124200.0)]).status == "pass"
+    assert reconcile.check_margin_bound([bound(50900.0, 50900.02, 124200.0)]).status == "fail"
+    assert reconcile.check_margin_bound([bound(124200.02, -17660.0, 124200.0)]).status == "fail"
+    assert reconcile.check_margin_bound([]).status == "fail"

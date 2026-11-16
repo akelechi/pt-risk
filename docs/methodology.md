@@ -143,7 +143,49 @@ until their milestone; they never report `pass` for something that was not check
 not from the ledger entries' own quantity and price, and compared per unit-hour to the
 cent. 6, 7, 8 as before; 8 now covers a non-empty ledger. 1, 2, 5 report `not_applicable`.
 
-## 13. Not yet written (rules land here before their milestone's numbers)
+## 13. Start, no-load and commitment (milestone 2)
 
-Start cost, no-load and DP commitment (M2), RT settlement and outages (M3), dual fuel
-(M4), delivered gas (M5), capacity (M6), hedges (M7), simulation (M8), attribution (M9).
+* **No-load fuel** is burned every hour the unit is on line, on top of the heat-rate curve:
+  fuel per hour = no-load MMBtu + the curve integrated from 0 MW to the output.
+* **Start cost** = start fuel x fuel price + other start cost, by thermal state: hot,
+  warm or cold according to the hours offline before the start (0 h is hot).
+* **Three-part offer.** Besides the one-part curve of §8, the offer carries start cost by
+  thermal state, no-load cost per hour, minimum generation (Pmin) and the steps above
+  Pmin, convexified on their own. A unit with less than Pmin available offers nothing.
+* **Dispatch of a committed unit** = Pmin plus every step above Pmin priced strictly below
+  the DA LBMP. A committed unit cannot run below Pmin.
+* **Solvers.** Module `dp_commitment` selects the solver behind the ledger:
+  * `price_taker` (off): §9, unchanged. It books no start or no-load cost and obeys no
+    run-time limit. It is the baseline kept forever.
+  * `dp` (on): dynamic program over (on/off, hours in state), with start cost by thermal
+    state, no-load, minimum up and down times, and the dispatch rule above. It plans two
+    local days with perfect foresight of the DA LBMP and the fuel price, keeps the first
+    day, and plans again the next day from the state actually reached. Nothing is
+    assumed after the horizon (terminal value 0); on the last day of the window the
+    horizon is one day (Q-032, Q-033). A start or a shutdown is chosen only when it is
+    strictly better. Ramp rate is not modelled (Q-031).
+  * `price_taker_constrained`: the price-taker's rule made feasible. It wants to be on
+    when the LBMP is above its lowest one-part offer step, but obeys minimum up and down
+    times and pays start and no-load cost. Every DP run also executes this solver and
+    the baseline, for comparison.
+* **Booked** with any solver except the baseline: `no_load_cost` each hour on line;
+  `start_cost` in the hour of a start, as two entries (start fuel MMBtu x fuel price, and
+  1 start x other start cost).
+* **Uplift (simplified make-whole, Q-030).** A commitment block runs from a start to the
+  shutdown. In the first hour after it ends, `uplift = max(0, block costs - block DA
+  revenue)` is booked, costs being fuel, no-load, VOM and start cost. A block still
+  running when the window ends is not settled. Uplift is not part of the energy margin
+  and the DP does not optimise for it.
+* **Invariant 3** now expects, per hour, the sum of each fuel-side component rounded to
+  the cent (curve fuel, no-load, start fuel, other start cost), recomputed from states.
+* **Invariant 5** is checked on every planning day as three values of one planning
+  problem (same horizon, starting state and prices): price-taker with constraints <= DP
+  <= unconstrained. "Unconstrained" is the best of staying off and every corner of the
+  true heat-rate curve in each hour, with no start cost, no-load or run-time limit. It
+  equals the price-taker baseline up to the offer tick. Both orderings are properties of
+  the solver, so a failure means the DP is wrong, not that the month was unusual.
+
+## 14. Not yet written (rules land here before their milestone's numbers)
+
+RT settlement and outages (M3), dual
+fuel (M4), delivered gas (M5), capacity (M6), hedges (M7), simulation (M8), attribution (M9).
