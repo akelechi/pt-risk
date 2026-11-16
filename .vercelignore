@@ -1,0 +1,11 @@
+.venv
+.git
+runs
+data/raw
+tests
+tasks
+docs
+ui/node_modules
+ui/.next
+**/__pycache__
+.pytest_cache

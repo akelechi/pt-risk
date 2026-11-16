@@ -4,10 +4,17 @@ The API computes nothing: it calls `engine.run.run`, stores the RunResult as JSO
 runs/{run_id}/, and serves slices of it. Run with:
 
     uvicorn api.main:app --reload
+
+Two environment variables adapt it to a host whose code directory is read-only:
+  ROSETON_RUNS_DIR         where runs are stored (default: runs/ under the repository root)
+  ROSETON_SEED_SCENARIOS   comma-separated scenario files to run once, the first time runs
+                           are asked for, so a fresh instance has something to show
 """
 
 from __future__ import annotations
 
+import os
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -29,9 +36,11 @@ from engine.contracts import (
 from engine.flow import hour_flow, hour_flows
 from engine.ledger.ledger import Grain, rollup
 from engine.plant.params import ProvenanceError, flatten_leaves, load_plant, status_counts
-from engine.run import REPO_ROOT, run
+from engine.run import REPO_ROOT, load_scenario, run
 
 RUNS_DIR = "runs"
+RUNS_DIR_ENV = "ROSETON_RUNS_DIR"
+SEED_SCENARIOS_ENV = "ROSETON_SEED_SCENARIOS"
 RESULT_FILE = "result.json"
 DEFAULT_PLANT_CONFIG = Path("config") / "plant.roseton.yaml"
 
@@ -47,10 +56,33 @@ def create_app(root: Path = REPO_ROOT) -> FastAPI:
         allow_headers=["*"],
     )
 
+    runs_dir = Path(os.environ[RUNS_DIR_ENV]) if os.environ.get(RUNS_DIR_ENV) else root / RUNS_DIR
+    seed_lock = threading.Lock()
+    seeded = {"done": False}
+
+    def store(result: RunResult) -> None:
+        directory = runs_dir / result.meta.run_id
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / RESULT_FILE).write_text(result.model_dump_json())
+
+    def ensure_seeded() -> None:
+        """Run the seed scenarios once per process when the run store is empty."""
+        if seeded["done"]:
+            return
+        with seed_lock:
+            if seeded["done"]:
+                return
+            paths = [item.strip() for item in os.environ.get(SEED_SCENARIOS_ENV, "").split(",") if item.strip()]
+            if paths and not any(runs_dir.glob(f"*/{RESULT_FILE}")):
+                for path in paths:
+                    store(run(load_scenario(root / path), root))
+            seeded["done"] = True
+
     def load_result(run_id: str) -> RunResult:
         if not run_id.isalnum():
             raise HTTPException(status_code=404, detail=f"run {run_id!r} not found")
-        path = root / RUNS_DIR / run_id / RESULT_FILE
+        ensure_seeded()
+        path = runs_dir / run_id / RESULT_FILE
         if not path.exists():
             raise HTTPException(status_code=404, detail=f"run {run_id!r} not found")
         return RunResult.model_validate_json(path.read_text())
@@ -64,15 +96,14 @@ def create_app(root: Path = REPO_ROOT) -> FastAPI:
             raise HTTPException(status_code=501, detail=str(error)) from error
         except (ValueError, KeyError, FileNotFoundError) as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
-        directory = root / RUNS_DIR / result.meta.run_id
-        directory.mkdir(parents=True, exist_ok=True)
-        (directory / RESULT_FILE).write_text(result.model_dump_json())
+        store(result)
         return RunCreated(run_id=result.meta.run_id)
 
     @app.get("/runs", response_model=list[RunSummary])
     def list_runs() -> list[RunSummary]:
         """Stored runs, sorted by run id."""
-        directory = root / RUNS_DIR
+        ensure_seeded()
+        directory = runs_dir
         if not directory.exists():
             return []
         summaries = []

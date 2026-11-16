@@ -121,3 +121,27 @@ def test_hour_endpoint_errors(client: TestClient, m1_run: str):
     assert client.get(f"/runs/{m1_run}/hour/2025-01-01T05:00:00").status_code == 422  # no offset
     assert client.get(f"/runs/{m1_run}/hour/not-a-time").status_code == 422
     assert client.get(f"/runs/{m1_run}/flow", params={"unit_id": "U2"}).status_code == 404
+
+
+def test_seed_scenarios_fill_an_empty_run_store_once(repo_copy, tmp_path, monkeypatch):
+    """A host with a read-only code directory: runs live elsewhere and are seeded on first use."""
+    from api.main import create_app
+
+    store = tmp_path / "elsewhere"
+    monkeypatch.setenv("ROSETON_RUNS_DIR", str(store))
+    monkeypatch.setenv("ROSETON_SEED_SCENARIOS", "config/scenario.m1.yaml, config/scenario.m2.yaml")
+    seeded = TestClient(create_app(repo_copy))
+    runs = seeded.get("/runs").json()
+    assert sorted(item["scenario_name"] for item in runs) == ["m1_jan2025_u1", "m2_jan2025_u1"]
+    assert len(list(store.glob("*/result.json"))) == 2 and not (repo_copy / "runs").exists()
+    assert seeded.get(f"/runs/{runs[0]['run_id']}").status_code == 200
+    assert len(seeded.get("/runs").json()) == 2  # asked again: nothing is run twice
+
+
+def test_code_version_falls_back_to_the_deployed_commit(tmp_path, monkeypatch):
+    from engine.version import code_version
+
+    monkeypatch.delenv("VERCEL_GIT_COMMIT_SHA", raising=False)
+    assert code_version(tmp_path) == "unversioned"
+    monkeypatch.setenv("VERCEL_GIT_COMMIT_SHA", "abc123")
+    assert code_version(tmp_path) == "abc123"

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "frontend": {
+      "root": "ui",
+      "bindings": [
+        { "type": "service", "service": "engine", "format": "url", "env": "ROSETON_API_URL" }
+      ]
+    },
+    "engine": {
+      "root": ".",
+      "entrypoint": "main:app"
+    }
+  },
+  "rewrites": [{ "source": "/(.*)", "destination": { "service": "frontend" } }]
+}
